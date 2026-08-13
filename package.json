@@ -1,0 +1,16 @@
+{
+  "name": "agent-benchmark-workbench",
+  "version": "0.1.0",
+  "description": "Local-first workbench for running and evaluating coding agents against repository contracts.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test scripts/agent-benchmark.test.mjs",
+    "dry-run": "node scripts/run-agent-benchmark.mjs --scenario tasks-page --dry-run",
+    "web": "node scripts/benchmark-web-server.mjs",
+    "web:dev": "node --watch scripts/benchmark-web-server.mjs"
+  }
+}
