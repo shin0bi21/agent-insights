@@ -6,8 +6,8 @@ import { extname, resolve, sep } from 'node:path';
 import process from 'node:process';
 import { chooseRepositoryDirectory, createRunManager, discoverSkills, providerCatalog, validateRepository } from './benchmark-web-lib.mjs';
 
-const ROOT = resolve(import.meta.dirname, '..');
-const PUBLIC_ROOT = resolve(ROOT, 'web');
+const ROOT = resolve(import.meta.dirname, '../..');
+const PUBLIC_ROOT = resolve(ROOT, 'frontend/dist');
 const manager = createRunManager({ root: ROOT });
 const port = Number(process.env.BENCHMARK_WEB_PORT ?? 4173);
 

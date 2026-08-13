@@ -107,7 +107,7 @@ export function createRunManager({ root, spawnProcess = spawn }) {
     writeFileSync(logPath, '');
     const config = { id, createdAt: new Date().toISOString(), status: 'running', repo, provider: provider.id, model: input.model, reasoningEffort: input.reasoningEffort, skill: input.skill || null, description: String(input.description).trim() };
     writeJson(resolve(directory, 'web-run.json'), config);
-    const args = [resolve(root, 'scripts/run-agent-benchmark.mjs'), '--repo', repo, '--scenario', 'tasks-page', '--models', input.model, '--reasoning-efforts', input.reasoningEffort, '--repetitions', '1', '--prompt-file', promptPath, '--output-dir', directory];
+    const args = [resolve(root, 'backend/src/run-agent-benchmark.mjs'), '--repo', repo, '--scenario', 'tasks-page', '--models', input.model, '--reasoning-efforts', input.reasoningEffort, '--repetitions', '1', '--prompt-file', promptPath, '--output-dir', directory];
     const output = writeFileSync;
     const child = spawnProcess(process.execPath, args, { cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
     active.set(id, { status: 'running', exitCode: null, child });

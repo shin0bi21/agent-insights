@@ -6,6 +6,7 @@ logs/
 # Dependencies and coverage
 node_modules/
 coverage/
+frontend/dist/
 
 # Local configuration and secrets
 .env

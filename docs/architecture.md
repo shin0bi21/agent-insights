@@ -2,6 +2,8 @@
 
 Repo Automation Score is a local-first web application. The browser owns configuration and result presentation; a localhost service owns privileged access to repositories, agent CLIs, Git worktrees, tests, and artifacts.
 
+Application code is split by execution boundary: `frontend/` contains the React and TypeScript browser application, while `backend/src/` contains the local API, provider configuration, process orchestration, evaluator, and report logic. The backend does not require a database; generated run artifacts currently provide persistence under `results/`.
+
 ## Boundaries
 
 ```text

@@ -8,11 +8,11 @@ import process from 'node:process';
 import { ensureDirectory, parseJsonLines, readJson, runCommand, spawnWithCapture, summarizeEvents, writeJson } from './agent-benchmark-lib.mjs';
 import { grade } from './grade-agent-benchmark.mjs';
 
-const HARNESS_ROOT = resolve(import.meta.dirname, '..');
+const HARNESS_ROOT = resolve(import.meta.dirname, '../..');
 const SCENARIOS_ROOT = resolve(HARNESS_ROOT, 'scenarios-and-docs/scenarios');
 
 function usage() {
-  console.log(`Usage: node scripts/benchmarks/run-agent-benchmark.mjs --scenario ID [options]
+  console.log(`Usage: node backend/src/run-agent-benchmark.mjs --scenario ID [options]
 
 Options:
   --repo PATH           Target Git repository (required).

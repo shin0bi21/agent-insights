@@ -8,9 +8,28 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test scripts/agent-benchmark.test.mjs",
-    "dry-run": "node scripts/run-agent-benchmark.mjs --scenario tasks-page --dry-run",
-    "web": "node scripts/benchmark-web-server.mjs",
-    "web:dev": "node --watch scripts/benchmark-web-server.mjs"
+    "test": "node --test backend/test/agent-benchmark.test.mjs",
+    "test:web": "vitest run",
+    "dry-run": "node backend/src/run-agent-benchmark.mjs --scenario tasks-page --dry-run",
+    "web": "npm run web:build && node backend/src/benchmark-web-server.mjs",
+    "web:dev": "node backend/src/benchmark-web-dev.mjs",
+    "web:build": "vite build",
+    "web:check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "5.0.4",
+    "vite": "7.3.6",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/dom": "10.4.1",
+    "@testing-library/react": "16.3.2",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "jsdom": "26.1.0",
+    "typescript": "5.9.2",
+    "vitest": "3.2.7"
   }
 }

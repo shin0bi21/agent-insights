@@ -5,7 +5,7 @@ Repo Automation Score is a local-first application that measures how reliably AI
 The first scenario asks agents to build the Staff Tasks feature from the commit immediately before Tasks existed. Its manifest overlays a pinned snapshot of current repository guidance onto that historical application revision, then creates a disposable synthetic baseline commit so guidance is visible but excluded from the candidate diff and score. Scenario manifests are versioned; do not combine results from different prompt or guidance versions in one model comparison. Preview the matrix:
 
 ```bash
-node scripts/run-agent-benchmark.mjs \
+node backend/src/run-agent-benchmark.mjs \
   --repo /Users/bilalkhan/Desktop/my-webapp \
   --scenario tasks-page \
   --dry-run
@@ -14,7 +14,7 @@ node scripts/run-agent-benchmark.mjs \
 Run a single-model pilot before spending time on a full matrix:
 
 ```bash
-node scripts/run-agent-benchmark.mjs \
+node backend/src/run-agent-benchmark.mjs \
   --repo /Users/bilalkhan/Desktop/my-webapp \
   --scenario tasks-page \
   --models gpt-5.6-luna \
@@ -34,7 +34,7 @@ Start the local-first browser interface:
 npm run web
 ```
 
-Then open `http://127.0.0.1:4173`. Connect a local Git repository, choose a discovered `.agents/skills` or `.codex/skills` workflow, select an agent platform, model, and reasoning effort, and enter a feature description. Web-launched artifacts are stored under `results/web-runs/`.
+Then open `http://127.0.0.1:4173`. `npm run web` builds the React/TypeScript frontend and serves it through the local backend. For development with Vite reloads, use `npm run web:dev` and open `http://127.0.0.1:5173`. Connect a local Git repository, choose a discovered `.agents/skills` or `.codex/skills` workflow, select an agent platform, model, and reasoning effort, and enter a feature description. Web-launched artifacts are stored under `results/web-runs/`.
 
 The product model is agent-platform-neutral: the UI and run records use a provider catalog, with Codex as the first adapter and Luna/Terra as its initial models. Other coding-agent platforms can be added behind the same provider boundary. The current executable benchmark remains the versioned `tasks-page` scenario, whose pinned revisions and evaluator target `my-webapp`; generic scenario/reference construction is the next required capability before arbitrary repositories can complete runs.
 

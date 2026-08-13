@@ -4,10 +4,10 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import test from 'node:test';
 import { resolve } from 'node:path';
-import { gradeStructure } from './grade-agent-benchmark.mjs';
-import { parseJsonLines, spawnWithCapture, summarizeEvents } from './agent-benchmark-lib.mjs';
-import { codexArguments, comparison, parseArguments } from './run-agent-benchmark.mjs';
-import { chooseRepositoryDirectory, composePrompt, discoverSkills, providerCatalog, validateRepository } from './benchmark-web-lib.mjs';
+import { gradeStructure } from '../src/grade-agent-benchmark.mjs';
+import { parseJsonLines, spawnWithCapture, summarizeEvents } from '../src/agent-benchmark-lib.mjs';
+import { codexArguments, comparison, parseArguments } from '../src/run-agent-benchmark.mjs';
+import { chooseRepositoryDirectory, composePrompt, discoverSkills, providerCatalog, validateRepository } from '../src/benchmark-web-lib.mjs';
 
 test('parses a bounded benchmark matrix', () => {
   assert.deepEqual(parseArguments([
@@ -58,7 +58,7 @@ test('structural grading requires every file pattern and marker', () => {
 test('the Tasks page manifest has a stable 100-point rubric', () => {
   const manifest = JSON.parse(readFileSync(resolve(
     import.meta.dirname,
-    '../scenarios-and-docs/scenarios/tasks-page/manifest.json',
+    '../../scenarios-and-docs/scenarios/tasks-page/manifest.json',
   ), 'utf8'));
   const scoredItems = [...manifest.checks, ...manifest.requirements];
   assert.equal(scoredItems.reduce((total, item) => total + item.points, 0), 100);
