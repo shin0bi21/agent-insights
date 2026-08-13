@@ -1,7 +1,17 @@
 # Generated benchmark artifacts
 results/
+run-data/
+.run-data/
 logs/
 *.log
+
+# Local databases (the application does not currently require one)
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
 
 # Dependencies and coverage
 node_modules/

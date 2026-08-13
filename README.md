@@ -40,4 +40,6 @@ The product model is agent-platform-neutral: the UI and run records use a provid
 
 The service binds only to localhost. It executes Codex, Git, dependency setup, Docker, and evaluator commands with the permissions of the terminal that launched it. The browser/server boundary is intentionally narrow so this UI can later be wrapped with Tauri for desktop distribution.
 
+Run data is local-private by default. Prompts, patches, logs, repository paths, events, and reports stay beneath the Git-ignored `results/` directory; the application does not store them in a database or send them to GitHub.
+
 See [Architecture](docs/architecture.md) for the provider boundary and planned reference-comparison pipeline.

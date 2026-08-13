@@ -170,3 +170,14 @@ test('uses a native macOS picker without interpolating shell input', () => {
   assert.deepEqual(call, { command: 'osascript', args: ['-e', 'POSIX path of (choose folder with prompt "Choose a Git repository")'] });
   assert.throws(() => chooseRepositoryDirectory({ platform: 'linux' }), /currently available on macOS/);
 });
+
+test('keeps local run artifacts and databases outside version control', () => {
+  const root = resolve(import.meta.dirname, '../..');
+  const ignored = execFileSync('git', ['check-ignore', 'results/web-runs/example/result.json', 'run-data/example.json', 'local.sqlite'], { cwd: root, encoding: 'utf8' });
+  assert.match(ignored, /results\/web-runs\/example\/result\.json/);
+  assert.match(ignored, /run-data\/example\.json/);
+  assert.match(ignored, /local\.sqlite/);
+  const tracked = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' }).split('\n');
+  assert.equal(tracked.some(path => /^(results|run-data|\.run-data|logs)\//.test(path)), false);
+  assert.equal(tracked.some(path => /\.(?:db|sqlite|sqlite3)(?:-|$)/.test(path)), false);
+});
