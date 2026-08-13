@@ -78,13 +78,23 @@ export function createRunManager({ root, spawnProcess = spawn }) {
     if (!within(runsRoot, directory) || !existsSync(configPath)) return null;
     const config = readJson(configPath);
     const comparisonPath = resolve(directory, 'comparison.json');
-    const progressPath = resolve(directory, 'runner.log');
+    const runnerLogPath = resolve(directory, 'runner.log');
+    const candidateLogs = readdirSync(directory, { withFileTypes: true })
+      .filter(entry => entry.isDirectory())
+      .map(entry => resolve(directory, entry.name, 'progress.log'))
+      .filter(existsSync);
+    const progressSections = [
+      existsSync(runnerLogPath) ? `Runner\n${readFileSync(runnerLogPath, 'utf8')}` : '',
+      ...candidateLogs.map(path => `Agent progress\n${readFileSync(path, 'utf8')}`),
+    ].filter(Boolean);
     const live = active.get(id);
+    const persistedStatus = config.status === 'running' ? 'interrupted' : (config.status ?? 'failed');
     return {
       ...config,
-      status: live?.status ?? (existsSync(comparisonPath) ? 'completed' : config.status ?? 'failed'),
+      status: live?.status ?? (existsSync(comparisonPath) ? 'completed' : persistedStatus),
       exitCode: live?.exitCode ?? config.exitCode ?? null,
-      progress: existsSync(progressPath) ? readFileSync(progressPath, 'utf8').slice(-20_000) : '',
+      artifactPath: directory,
+      progress: progressSections.join('\n\n').slice(-40_000),
       comparison: existsSync(comparisonPath) ? readJson(comparisonPath) : null,
     };
   }

@@ -19,9 +19,9 @@ function RunCard({ run, now }: { run: RunRecord; now: number }) {
   const duration = result?.medianDurationMs ?? (run.status === 'running' ? now - new Date(run.createdAt).getTime() : null);
   return <article className="run">
     <div className="run-top"><div className="run-summary"><span className="run-label">Feature request</span><p className="run-prompt">{run.description}</p></div><span className={`badge ${run.status}`}>{run.status}</span></div>
-    <dl className="run-details"><div><dt>Agent</dt><dd>{run.provider ?? 'codex'} / {run.model.replace('gpt-5.6-', '')}</dd></div><div><dt>Reasoning</dt><dd>{run.reasoningEffort}</dd></div><div><dt>Skill</dt><dd>{run.skill || 'None'}</dd></div>{duration !== null && <div><dt>{run.status === 'running' ? 'Elapsed' : 'Duration'}</dt><dd>{formatDuration(duration)}</dd></div>}</dl>
+    <dl className="run-details"><div><dt>Agent</dt><dd>{run.provider ?? 'codex'} / {run.model.replace('gpt-5.6-', '')}</dd></div><div><dt>Reasoning</dt><dd>{run.reasoningEffort}</dd></div><div><dt>Skill</dt><dd>{run.skill || 'None'}</dd></div>{duration !== null && <div><dt>{run.status === 'running' ? 'Elapsed' : 'Duration'}</dt><dd>{formatDuration(duration)}</dd></div>}<div className="artifact-detail"><dt>Local artifacts</dt><dd title={run.artifactPath}>{run.artifactPath}</dd></div></dl>
     {result && <><p className="score">{result.medianScore ?? '—'}%</p><p className="misses">{misses.length ? `Missed: ${misses.join(', ')}` : 'All structural contracts found.'}</p></>}
-    {run.status === 'running' && run.progress && <pre className="log">{run.progress}</pre>}
+    {run.progress && <details className="progress"><summary>{run.status === 'running' ? 'Live progress' : 'Run log'}</summary><pre className="log">{run.progress}</pre></details>}
   </article>;
 }
 

@@ -1,4 +1,4 @@
-export type RunStatus = 'running' | 'completed' | 'failed' | 'cancelled' | 'timed_out';
+export type RunStatus = 'running' | 'completed' | 'failed' | 'cancelled' | 'timed_out' | 'interrupted';
 
 export interface AgentModel { id: string; label: string }
 export interface AgentProvider { id: string; label: string; models: AgentModel[] }
@@ -21,6 +21,7 @@ export interface RunRecord {
   skill: string | null;
   description: string;
   status: RunStatus;
+  artifactPath: string;
   progress: string;
   comparison: { comparison: ComparisonRow[] } | null;
 }

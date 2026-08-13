@@ -7,7 +7,7 @@ import { resolve } from 'node:path';
 import { gradeStructure } from '../src/grade-agent-benchmark.mjs';
 import { parseJsonLines, spawnWithCapture, summarizeEvents } from '../src/agent-benchmark-lib.mjs';
 import { codexArguments, comparison, parseArguments } from '../src/run-agent-benchmark.mjs';
-import { chooseRepositoryDirectory, composePrompt, discoverSkills, providerCatalog, validateRepository } from '../src/benchmark-web-lib.mjs';
+import { chooseRepositoryDirectory, composePrompt, createRunManager, discoverSkills, providerCatalog, validateRepository } from '../src/benchmark-web-lib.mjs';
 
 test('parses a bounded benchmark matrix', () => {
   assert.deepEqual(parseArguments([
@@ -180,4 +180,24 @@ test('keeps local run artifacts and databases outside version control', () => {
   const tracked = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' }).split('\n');
   assert.equal(tracked.some(path => /^(results|run-data|\.run-data|logs)\//.test(path)), false);
   assert.equal(tracked.some(path => /\.(?:db|sqlite|sqlite3)(?:-|$)/.test(path)), false);
+});
+
+test('run manager exposes its resolved local artifact path and detailed agent progress', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'repo-score-runs-'));
+  try {
+    const runDirectory = resolve(root, 'results/web-runs/run-example');
+    const candidateDirectory = resolve(runDirectory, 'provider-model-run-1');
+    mkdirSync(candidateDirectory, { recursive: true });
+    writeFileSync(resolve(runDirectory, 'web-run.json'), JSON.stringify({ id: 'run-example', createdAt: '2026-01-01T00:00:00.000Z', status: 'running' }));
+    writeFileSync(resolve(runDirectory, 'runner.log'), 'preparing worktree');
+    writeFileSync(resolve(candidateDirectory, 'progress.log'), 'reading repository guidance');
+    const manager = createRunManager({ root });
+    const run = manager.get('run-example');
+    assert.equal(run.artifactPath, runDirectory);
+    assert.equal(run.status, 'interrupted');
+    assert.match(run.progress, /preparing worktree/);
+    assert.match(run.progress, /reading repository guidance/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
