@@ -1,6 +1,6 @@
 # Architecture
 
-Agent Benchmark Workbench is a local-first web application. The browser owns configuration and result presentation; a localhost service owns privileged access to repositories, agent CLIs, Git worktrees, tests, and artifacts.
+Repo Automation Score is a local-first web application. The browser owns configuration and result presentation; a localhost service owns privileged access to repositories, agent CLIs, Git worktrees, tests, and artifacts.
 
 ## Boundaries
 

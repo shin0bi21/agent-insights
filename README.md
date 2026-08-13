@@ -1,6 +1,6 @@
-# Agent Benchmark Workbench
+# Repo Automation Score
 
-Agent Benchmark Workbench is a local-first web application and execution harness for comparing coding agents against the same repository revision, prompt, permissions, and evaluator. It does not modify or become part of the target repository.
+Repo Automation Score is a local-first application that measures how reliably AI agents can understand, change, and verify a repository. It combines repository-readiness signals with isolated agent runs, deterministic evaluation, and actionable reports. It does not modify or become part of the target repository.
 
 The first scenario asks agents to build the Staff Tasks feature from the commit immediately before Tasks existed. Its manifest overlays a pinned snapshot of current repository guidance onto that historical application revision, then creates a disposable synthetic baseline commit so guidance is visible but excluded from the candidate diff and score. Scenario manifests are versioned; do not combine results from different prompt or guidance versions in one model comparison. Preview the matrix:
 

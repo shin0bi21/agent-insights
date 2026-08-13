@@ -5,4 +5,4 @@
 - [Features](features/README.md): current product contracts.
 - [Operations](operations/local-development.md): local startup and troubleshooting.
 
-Target repositories are not graded on whether they use this documentation layout. This is the workbench's own canonical guidance and a dogfooding fixture for its discovery and automation-readiness model.
+Target repositories are not graded on whether they use this documentation layout. This is Repo Automation Score's own canonical guidance and a dogfooding fixture for its discovery and automation-readiness model.

@@ -1,6 +1,6 @@
 ---
 name: develop-feature
-description: Add, change, fix, or refactor Agent Benchmark Workbench product behavior across its browser UI, localhost API, repository discovery, agent-provider boundary, run lifecycle, artifacts, and reports. Use for user-facing features, API endpoints, provider integrations, persistence, accessibility, and runner orchestration; use maintain-evaluators instead when the primary change is scoring or scenario methodology.
+description: Add, change, fix, or refactor Repo Automation Score product behavior across its browser UI, localhost API, repository discovery, agent-provider boundary, run lifecycle, artifacts, and reports. Use for user-facing features, API endpoints, provider integrations, persistence, accessibility, and runner orchestration; use maintain-evaluators instead when the primary change is scoring or scenario methodology.
 ---
 
 # Develop Feature
@@ -14,4 +14,4 @@ description: Add, change, fix, or refactor Agent Benchmark Workbench product beh
 7. Run `npm test`, applicable `node --check` commands from `AGENTS.md`, and `git diff --check`.
 8. Verify the acceptance ledger and report checks actually run plus genuine limitations.
 
-Do not make target repositories conform to this workbench's structure. Model repository capabilities and applicable templates explicitly.
+Do not make target repositories conform to this product's structure. Model repository capabilities and applicable templates explicitly.

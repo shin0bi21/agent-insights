@@ -1,4 +1,4 @@
 interface:
   display_name: "Review Changes"
-  short_description: "Review workbench changes and evidence"
-  default_prompt: "Use $review-changes to review the current workbench changes."
+  short_description: "Review product changes and score evidence"
+  default_prompt: "Use $review-changes to review the current Repo Automation Score changes."

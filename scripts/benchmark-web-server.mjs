@@ -61,6 +61,6 @@ export async function handleRequest(request, response) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   createServer(handleRequest).listen(port, '127.0.0.1', () => {
-    console.log(`Agent Benchmarks UI: http://127.0.0.1:${port}`);
+    console.log(`Repo Automation Score: http://127.0.0.1:${port}`);
   });
 }

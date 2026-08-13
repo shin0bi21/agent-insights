@@ -1,4 +1,4 @@
 interface:
   display_name: "Develop Feature"
-  short_description: "Build workbench product features safely"
-  default_prompt: "Use $develop-feature to add a feature to Agent Benchmark Workbench."
+  short_description: "Build Repo Automation Score features safely"
+  default_prompt: "Use $develop-feature to add a feature to Repo Automation Score."

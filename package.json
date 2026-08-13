@@ -1,7 +1,7 @@
 {
-  "name": "agent-benchmark-workbench",
+  "name": "repo-automation-score",
   "version": "0.1.0",
-  "description": "Local-first workbench for running and evaluating coding agents against repository contracts.",
+  "description": "Measure how reliably AI agents can understand, change, and verify a repository.",
   "private": true,
   "type": "module",
   "engines": {
