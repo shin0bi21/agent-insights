@@ -9,3 +9,5 @@ Work from contracts outward:
 5. Run `npm test` and applicable syntax or smoke checks.
 
 Use [Adding a feature](adding-a-feature.md) for new product behavior, [Adding an agent provider](adding-a-provider.md) for another agentic platform, and [Adding an evaluator](adding-an-evaluator.md) for scoring changes.
+
+Before shipping, make the top-level split decision, review each concern with current verification evidence, and ship approved concerns serially through an issue-numbered branch and pull request. Returning to a clean synchronized `main` completes shipping; deployment or package publication is a separate authorization.

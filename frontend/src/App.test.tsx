@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
-import App from './App';
+import App, { formatDuration } from './App';
 
 vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
   const path = String(input);
@@ -14,4 +14,9 @@ test('renders the typed run configuration and provider catalog', async () => {
   expect(screen.getByLabelText('Local repository path')).toBeInTheDocument();
   await waitFor(() => expect(screen.getByRole('option', { name: 'Codex' })).toBeInTheDocument());
   expect(screen.getByRole('option', { name: 'Luna' })).toBeInTheDocument();
+});
+
+test('formats elapsed run time compactly', () => {
+  expect(formatDuration(3_725_000)).toBe('1h 2m 5s');
+  expect(formatDuration(45_000)).toBe('45s');
 });

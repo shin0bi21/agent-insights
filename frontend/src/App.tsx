@@ -5,11 +5,21 @@ import './styles.css';
 
 const emptyRun: StartRunInput = { repo: '', provider: '', model: '', reasoningEffort: 'low', skill: '', description: '' };
 
-function RunCard({ run }: { run: RunRecord }) {
+export function formatDuration(milliseconds: number) {
+  const seconds = Math.max(0, Math.floor(milliseconds / 1000));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainder = seconds % 60;
+  return [hours ? `${hours}h` : '', minutes || hours ? `${minutes}m` : '', `${remainder}s`].filter(Boolean).join(' ');
+}
+
+function RunCard({ run, now }: { run: RunRecord; now: number }) {
   const result = run.comparison?.comparison[0];
   const misses = result ? Object.keys(result.missedRequirements) : [];
+  const duration = result?.medianDurationMs ?? (run.status === 'running' ? now - new Date(run.createdAt).getTime() : null);
   return <article className="run">
-    <div className="run-top"><div><h3>{run.description}</h3><div className="meta">{run.provider ?? 'codex'} / {run.model.replace('gpt-5.6-', '')} · {run.reasoningEffort} · {run.skill || 'no skill'}</div></div><span className={`badge ${run.status}`}>{run.status}</span></div>
+    <div className="run-top"><div className="run-summary"><span className="run-label">Feature request</span><p className="run-prompt">{run.description}</p></div><span className={`badge ${run.status}`}>{run.status}</span></div>
+    <dl className="run-details"><div><dt>Agent</dt><dd>{run.provider ?? 'codex'} / {run.model.replace('gpt-5.6-', '')}</dd></div><div><dt>Reasoning</dt><dd>{run.reasoningEffort}</dd></div><div><dt>Skill</dt><dd>{run.skill || 'None'}</dd></div>{duration !== null && <div><dt>{run.status === 'running' ? 'Elapsed' : 'Duration'}</dt><dd>{formatDuration(duration)}</dd></div>}</dl>
     {result && <><p className="score">{result.medianScore ?? '—'}%</p><p className="misses">{misses.length ? `Missed: ${misses.join(', ')}` : 'All structural contracts found.'}</p></>}
     {run.status === 'running' && run.progress && <pre className="log">{run.progress}</pre>}
   </article>;
@@ -22,6 +32,7 @@ export default function App() {
   const [runs, setRuns] = useState<RunRecord[]>([]);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [now, setNow] = useState(Date.now());
   const provider = useMemo(() => providers.find(item => item.id === input.provider), [providers, input.provider]);
   const skill = skills.find(item => item.name === input.skill);
 
@@ -42,6 +53,12 @@ export default function App() {
     const timer = window.setTimeout(() => void loadRuns(), 3000);
     return () => window.clearTimeout(timer);
   }, [runs, loadRuns]);
+
+  useEffect(() => {
+    if (!runs.some(run => run.status === 'running')) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [runs]);
 
   async function connect(repo = input.repo) {
     setMessage('Connecting…');
@@ -83,7 +100,7 @@ export default function App() {
             <div className="form-status" role="status" aria-live="polite">{message}</div><button className="primary" disabled={busy} type="submit">Start agent run <span aria-hidden="true">→</span></button>
           </form>
         </section>
-        <section className="panel runs-panel" aria-labelledby="runs-title"><div className="panel-heading"><div><span>HISTORY</span><h2 id="runs-title">Recent runs</h2></div><button className="quiet" onClick={() => void loadRuns()} type="button">Refresh</button></div><div className="runs" aria-live="polite">{runs.length ? runs.map(run => <RunCard key={run.id} run={run}/>) : <p className="empty">No web runs yet.</p>}</div></section>
+        <section className="panel runs-panel" aria-labelledby="runs-title"><div className="panel-heading"><div><span>HISTORY</span><h2 id="runs-title">Recent runs</h2></div><button className="quiet" onClick={() => void loadRuns()} type="button">Refresh</button></div><div className="runs" aria-live="polite">{runs.length ? runs.map(run => <RunCard key={run.id} run={run} now={now}/>) : <p className="empty">No web runs yet.</p>}</div></section>
       </div>
     </main>
   </>;

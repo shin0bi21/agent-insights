@@ -7,6 +7,7 @@ export interface RepositoryConnection { repo: string; skills: RepositorySkill[] 
 
 export interface ComparisonRow {
   medianScore: number | null;
+  medianDurationMs: number | null;
   missedRequirements: Record<string, number>;
 }
 

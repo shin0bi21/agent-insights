@@ -5,7 +5,9 @@
 - Treat this repository as the workspace boundary and do not inspect target repositories unless the task names or authorizes them.
 - Use `.agents/skills/develop-feature/` for product and application changes.
 - Use `.agents/skills/maintain-evaluators/` for scenarios, scoring, comparison, report evidence, and automation-readiness changes.
-- Use `.agents/skills/review-changes/` when asked to review current changes.
+- Before deep review or shipping, use `.agents/skills/split-changes/` to decide whether the diff is one concern or produce the authoritative concern map.
+- Use `.agents/skills/review-changes/` for repeatable concern-level review and `.agents/skills/ship-changes/` for issue, branch, verification, pull-request, check, and merge workflows.
+- Follow `split decision → concern review → serial shipping to main`. Deployment and package publication always require separate explicit authorization.
 - Read the applicable contract under `docs/features/` before changing established behavior.
 - Read `docs/architecture.md` before changing service boundaries, provider adapters, repository execution, artifacts, or reports.
 - Read `docs/operations/local-development.md` before running the web service or an actual agent benchmark.
