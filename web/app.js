@@ -1,6 +1,7 @@
 const form = document.querySelector('#run-form');
 const repoInput = document.querySelector('#repo');
 const connectButton = document.querySelector('#connect');
+const browseButton = document.querySelector('#browse');
 const workflow = document.querySelector('#workflow');
 const skillSelect = document.querySelector('#skill');
 const skillDescription = document.querySelector('#skill-description');
@@ -33,6 +34,17 @@ async function connect() {
   } catch (error) { status.textContent = error.message; workflow.disabled = true; }
 }
 
+async function browse() {
+  status.textContent = 'Opening folder picker…';
+  browseButton.disabled = true;
+  try {
+    const result = await api('/api/pick-directory', { method: 'POST', body: '{}' });
+    repoInput.value = result.repo;
+    await connect();
+  } catch (error) { status.textContent = error.message; }
+  finally { browseButton.disabled = false; }
+}
+
 function updateSkill() {
   const skill = skills.find(item => item.name === skillSelect.value);
   skillDescription.textContent = skill?.description || 'The agent will use the repository’s general instructions.';
@@ -62,6 +74,7 @@ async function loadRuns() {
 }
 
 connectButton.addEventListener('click', connect);
+browseButton.addEventListener('click', browse);
 skillSelect.addEventListener('change', updateSkill);
 providerSelect.addEventListener('change', updateModels);
 document.querySelector('#refresh').addEventListener('click', loadRuns);

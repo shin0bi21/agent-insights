@@ -1,0 +1,4 @@
+interface:
+  display_name: "Maintain Evaluators"
+  short_description: "Build fair automation-readiness scoring"
+  default_prompt: "Use $maintain-evaluators to add or update an evaluator."

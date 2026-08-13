@@ -4,7 +4,7 @@ import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 import process from 'node:process';
-import { createRunManager, discoverSkills, providerCatalog, validateRepository } from './benchmark-web-lib.mjs';
+import { chooseRepositoryDirectory, createRunManager, discoverSkills, providerCatalog, validateRepository } from './benchmark-web-lib.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const PUBLIC_ROOT = resolve(ROOT, 'web');
@@ -50,6 +50,7 @@ export async function handleRequest(request, response) {
       const repo = validateRepository(input.repo);
       return json(response, 200, { repo, skills: discoverSkills(repo) });
     }
+    if (request.method === 'POST' && url.pathname === '/api/pick-directory') return json(response, 200, { repo: chooseRepositoryDirectory() });
     if (request.method === 'POST' && url.pathname === '/api/runs') return json(response, 202, manager.start(await body(request)));
     if (request.method === 'GET' && staticFile(url.pathname, response)) return;
     json(response, 404, { error: 'Not found.' });

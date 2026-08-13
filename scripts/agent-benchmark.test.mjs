@@ -7,7 +7,7 @@ import { resolve } from 'node:path';
 import { gradeStructure } from './grade-agent-benchmark.mjs';
 import { parseJsonLines, spawnWithCapture, summarizeEvents } from './agent-benchmark-lib.mjs';
 import { codexArguments, comparison, parseArguments } from './run-agent-benchmark.mjs';
-import { composePrompt, discoverSkills, providerCatalog, validateRepository } from './benchmark-web-lib.mjs';
+import { chooseRepositoryDirectory, composePrompt, discoverSkills, providerCatalog, validateRepository } from './benchmark-web-lib.mjs';
 
 test('parses a bounded benchmark matrix', () => {
   assert.deepEqual(parseArguments([
@@ -161,4 +161,12 @@ test('exposes models through an agent-provider catalog', () => {
     label: 'Codex',
     models: [{ id: 'gpt-5.6-luna', label: 'Luna' }, { id: 'gpt-5.6-terra', label: 'Terra' }],
   }]);
+});
+
+test('uses a native macOS picker without interpolating shell input', () => {
+  let call;
+  const repo = chooseRepositoryDirectory({ platform: 'darwin', execute(command, args) { call = { command, args }; return '/tmp/example/\n'; } });
+  assert.equal(repo, '/tmp/example');
+  assert.deepEqual(call, { command: 'osascript', args: ['-e', 'POSIX path of (choose folder with prompt "Choose a Git repository")'] });
+  assert.throws(() => chooseRepositoryDirectory({ platform: 'linux' }), /currently available on macOS/);
 });

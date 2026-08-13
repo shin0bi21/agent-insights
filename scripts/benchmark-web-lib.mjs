@@ -28,6 +28,16 @@ export function validateRepository(repoPath) {
   return path;
 }
 
+export function chooseRepositoryDirectory({ platform = process.platform, execute = execFileSync } = {}) {
+  if (platform !== 'darwin') throw new Error('Native folder selection is currently available on macOS. Enter the repository path manually on this platform.');
+  try {
+    return execute('osascript', ['-e', 'POSIX path of (choose folder with prompt "Choose a Git repository")'], { encoding: 'utf8' }).trim().replace(/\/$/, '');
+  } catch (error) {
+    if (error?.status === 1) throw new Error('Folder selection was cancelled.');
+    throw new Error('The native folder picker could not be opened.');
+  }
+}
+
 function skillMetadata(skillPath) {
   const source = readFileSync(skillPath, 'utf8');
   const frontmatter = source.match(/^---\s*\n([\s\S]*?)\n---/);
