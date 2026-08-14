@@ -20,6 +20,12 @@ export default function FloatingMenuPanel({ menuRef, triggerRef, onClose, childr
       const target = event.target as Node;
       if (!triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) onClose();
     };
+    const handleScroll = (event: Event) => {
+      if (placement !== 'anchored') return;
+      const target = event.target;
+      if (target instanceof Node && menuRef.current?.contains(target)) return;
+      onClose();
+    };
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { onClose(); return; }
       if (role === 'dialog' && event.key === 'Tab') {
@@ -41,6 +47,7 @@ export default function FloatingMenuPanel({ menuRef, triggerRef, onClose, childr
     };
     document.addEventListener('pointerdown', handlePointer);
     document.addEventListener('keydown', handleKey);
+    document.addEventListener('scroll', handleScroll, true);
     if (role === 'listbox') menuRef.current?.querySelector<HTMLElement>('[role="option"]')?.focus();
     else menuRef.current?.querySelector<HTMLElement>('button, [href], input, select, textarea')?.focus() ?? menuRef.current?.focus();
     const previousOverflow = document.body.style.overflow;
@@ -48,6 +55,7 @@ export default function FloatingMenuPanel({ menuRef, triggerRef, onClose, childr
     return () => {
       document.removeEventListener('pointerdown', handlePointer);
       document.removeEventListener('keydown', handleKey);
+      document.removeEventListener('scroll', handleScroll, true);
       triggerRef.current?.focus();
       document.body.style.overflow = previousOverflow;
     };
