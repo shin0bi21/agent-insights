@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { EventEmitter } from 'node:events';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { PassThrough } from 'node:stream';
 import test from 'node:test';
 import { resolve } from 'node:path';
 import { buildImplementationReview, gradeStructure } from '../src/grade-agent-benchmark.js';
@@ -207,7 +209,7 @@ test('keeps local run artifacts and databases outside version control', () => {
   assert.equal(tracked.some(path => /\.(?:db|sqlite|sqlite3)(?:-|$)/.test(path)), false);
 });
 
-test('run manager exposes its resolved local artifact path and detailed agent progress', () => {
+test('run manager uses the local database instead of treating artifact folders as durable records', async () => {
   const root = mkdtempSync(resolve(tmpdir(), 'repo-score-runs-'));
   try {
     const runDirectory = resolve(root, 'results/web-runs/run-example');
@@ -218,14 +220,60 @@ test('run manager exposes its resolved local artifact path and detailed agent pr
     writeFileSync(resolve(candidateDirectory, 'progress.log'), 'reading repository guidance');
     writeFileSync(resolve(candidateDirectory, 'events.jsonl'), `${JSON.stringify({ type: 'item.completed', item: { id: 'message-1', type: 'agent_message', text: 'Working.' } })}\n`);
     const manager = createRunManager({ root });
-    const run = manager.get('run-example');
-    assert.equal(run.artifactPath, runDirectory);
-    assert.equal(run.status, 'interrupted');
-    assert.match(run.progress, /preparing worktree/);
-    assert.match(run.progress, /reading repository guidance/);
-    assert.equal(run.activity[1].detail, 'Working.');
+    assert.equal(await manager.get('run-example'), null);
+    assert.deepEqual(await manager.list(), []);
+    assert.equal(existsSync(resolve(root, 'data/repo-automation-score.sqlite')), true);
+    await manager.close();
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('run manager honors the configured database path', async () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'repo-score-db-path-'));
+  const configured = resolve(root, 'custom', 'runs.sqlite');
+  const previous = process.env.REPO_AUTOMATION_SCORE_DB_PATH;
+  process.env.REPO_AUTOMATION_SCORE_DB_PATH = configured;
+  try {
+    const manager = createRunManager({ root });
+    await manager.list();
+    assert.equal(existsSync(configured), true);
+    assert.equal(existsSync(resolve(root, 'data/repo-automation-score.sqlite')), false);
+    await manager.close();
+  } finally {
+    if (previous === undefined) delete process.env.REPO_AUTOMATION_SCORE_DB_PATH;
+    else process.env.REPO_AUTOMATION_SCORE_DB_PATH = previous;
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('run manager normalizes a finished process before removing its temporary directory', async () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'repo-score-manager-'));
+  const repo = mkdtempSync(resolve(tmpdir(), 'repo-score-target-'));
+  const child = new EventEmitter() as EventEmitter & { stdout: PassThrough; stderr: PassThrough };
+  child.stdout = new PassThrough();
+  child.stderr = new PassThrough();
+  try {
+    mkdirSync(resolve(root, 'scenarios/tasks-page'), { recursive: true });
+    writeFileSync(resolve(root, 'scenarios/tasks-page/prompt.md'), '# Scenario\nBuild it.\n');
+    execFileSync('git', ['init', '--quiet'], { cwd: repo });
+    writeFileSync(resolve(repo, 'AGENTS.md'), '# Guidance\n');
+    const skill = resolve(repo, '.agents/skills/develop-feature');
+    mkdirSync(skill, { recursive: true });
+    writeFileSync(resolve(skill, 'SKILL.md'), '---\nname: develop-feature\ndescription: Build features.\n---\n');
+    execFileSync('git', ['add', '.'], { cwd: repo });
+    execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '--quiet', '-m', 'fixture'], { cwd: repo });
+    const manager = createRunManager({ root, spawnProcess: () => child });
+    const run = await manager.start({ repo, provider: 'codex', model: 'gpt-5.6-luna', reasoningEffort: 'low', featureType: 'frontend', description: 'Build it.' });
+    assert.equal(existsSync(run.artifactPath), true);
+    child.emit('close', 1);
+    for (let attempt = 0; attempt < 50 && existsSync(run.artifactPath); attempt += 1) await new Promise(resolveWait => setTimeout(resolveWait, 10));
+    assert.equal(existsSync(run.artifactPath), false);
+    assert.equal((await manager.get(run.id))?.status, 'failed');
+    await manager.close();
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(repo, { recursive: true, force: true });
   }
 });
 
