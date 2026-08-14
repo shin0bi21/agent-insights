@@ -28,7 +28,7 @@ Repository discovery, skill selection, feature prompts, run state, normalized ev
 - event, token, timing, and final-message normalization;
 - cancellation and failure classification.
 
-Codex is the first provider. Luna and Terra are models exposed by that adapter, not concepts embedded in the product model. Adding another agentic platform should require a provider adapter and contract tests, without changing repository discovery or reporting.
+Codex is the first provider. Sol, Luna, and Terra are models exposed by that adapter, not concepts embedded in the product model. Adding another agentic platform should require a provider adapter and contract tests, without changing repository discovery or reporting.
 
 ## Repository and scenario model
 

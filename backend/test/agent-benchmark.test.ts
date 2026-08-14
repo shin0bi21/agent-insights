@@ -159,7 +159,7 @@ test('exposes models through an agent-provider catalog', () => {
   assert.deepEqual(providerCatalog(), [{
     id: 'codex',
     label: 'Codex',
-    models: [{ id: 'gpt-5.6-luna', label: 'Luna' }, { id: 'gpt-5.6-terra', label: 'Terra' }],
+    models: [{ id: 'gpt-5.6-sol', label: 'Sol' }, { id: 'gpt-5.6-luna', label: 'Luna' }, { id: 'gpt-5.6-terra', label: 'Terra' }],
   }]);
 });
 
