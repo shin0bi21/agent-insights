@@ -32,7 +32,7 @@ Codex is the first provider. Sol, Luna, and Terra are models exposed by that ada
 
 ## Repository and scenario model
 
-A repository connection discovers `AGENTS.md` and skills beneath `.agents/skills` or `.codex/skills`. A run combines a repository revision, selected skill, user feature description, provider configuration, isolation policy, and evaluator.
+A repository connection requires `AGENTS.md` and discovers skills beneath `.agents/skills` or `.codex/skills`. A run combines a repository revision, user-selected feature scope, user feature description, provider configuration, isolation policy, and evaluator. The agent follows `AGENTS.md` to select its workflow skill; the browser does not prescribe one.
 
 The current executable scenario is `tasks-page`, pinned to historical and guidance revisions in `my-webapp`. Supporting arbitrary repositories requires a scenario builder that captures:
 

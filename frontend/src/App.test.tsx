@@ -16,6 +16,8 @@ test('renders the typed run configuration and provider catalog', async () => {
   expect(screen.getByLabelText('Local repository path')).toBeInTheDocument();
   await waitFor(() => expect(screen.getByRole('button', { name: 'Platform' })).toHaveTextContent('Codex'));
   expect(screen.getByRole('button', { name: 'Model' })).toHaveTextContent('Luna');
+  expect(screen.getByRole('button', { name: 'What kind of feature is this?' })).toHaveTextContent('Full stack');
+  expect(screen.queryByText('Repository skill')).not.toBeInTheDocument();
 });
 
 test('formats elapsed run time compactly', () => {

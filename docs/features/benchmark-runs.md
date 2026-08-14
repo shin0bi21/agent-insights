@@ -1,6 +1,6 @@
 # Benchmark runs
 
-A run combines a repository revision, prompt, optional selected skill, provider and model configuration, isolation policy, evaluator version, and optional template or reference implementation.
+A run combines a repository revision, frontend/backend/full-stack feature scope, prompt, provider and model configuration, isolation policy, evaluator version, and optional template or reference implementation. The user selects scope; `AGENTS.md` owns workflow and skill routing inside the target repository.
 
 Runs execute in disposable isolated worktrees and never in the user's working tree. The system records configuration, prepared prompt, normalized events, timing, usage, final response, patch, changed files, check output, and report data. Run states are queued, preparing, running, evaluating, completed, failed, cancelled, or timed out.
 
