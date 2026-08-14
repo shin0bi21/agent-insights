@@ -28,6 +28,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run validate:skills
       - run: npm run backend:check
       - run: npm test
       - run: npm run web:check

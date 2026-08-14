@@ -5,7 +5,7 @@ description: Review tracked and untracked Repo Automation Score changes for corr
 
 # Review Changes
 
-Review without editing, committing, or making remote changes.
+Review without editing, creating issues or branches, committing, or making remote changes. A clean review does not authorize shipping.
 
 For multiple substantial concerns, delegate independent read-only review lanes to lower-cost workers at low reasoning while the strongest primary orchestrator owns severity, deduplication, cross-boundary analysis, and the final report. Escalate only lanes with demonstrated architectural, security, concurrency, or debugging complexity. Do not delegate a small or tightly coupled review, and verify worker findings before reporting them.
 
@@ -17,3 +17,5 @@ For multiple substantial concerns, delegate independent read-only review lanes t
 6. Inspect tests and reuse exact, current verification evidence. Run only missing or stale narrow checks. Do not edit unless the user asks for fixes.
 7. Check that ignored local run data, prompts, patches, paths, credentials, and databases cannot enter Git or remote storage.
 8. Report findings by severity with file and line evidence, then list test gaps, concern boundaries, and residual risks. State clearly when no findings remain. A clean review does not authorize shipping.
+
+Reuse focused checks when they cover the exact unchanged concern diff. If a finding is fixed or the concern materially changes, review that current state rather than repeating stale conclusions.

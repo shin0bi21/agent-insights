@@ -16,7 +16,8 @@
     "web:build": "vite build",
     "web:check": "tsc --noEmit",
     "backend:check": "tsc -p backend/tsconfig.json --noEmit",
-    "backend:build": "tsc -p backend/tsconfig.json"
+    "backend:build": "tsc -p backend/tsconfig.json",
+    "validate:skills": "tsx scripts/validate-skills.ts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "5.0.4",

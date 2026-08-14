@@ -16,4 +16,6 @@ When delegation and tier selection are available, assign this complete read-only
 5. Order concerns safely. Shared foundations precede consumers; evaluator schema changes precede reports that consume them.
 6. Return one compact concern map for `review-changes` and `ship-changes`. Downstream workflows reuse it unless the diff materially changes.
 
+The map is a logical plan, not permission to create all branches at once. Shipping prepares and merges one concern at a time from freshly synchronized `develop`; only then may it prepare the next concern.
+
 Never include `results/`, prompts, patches, logs, repository paths, or local databases in a concern intended for GitHub.
