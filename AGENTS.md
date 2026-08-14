@@ -7,10 +7,11 @@
 - Use `.agents/skills/maintain-evaluators/` for scenarios, scoring, comparison, report evidence, and automation-readiness changes.
 - Before deep review or shipping, use `.agents/skills/split-changes/` to decide whether the diff is one concern or produce the authoritative concern map.
 - Use `.agents/skills/review-changes/` for repeatable concern-level review and `.agents/skills/ship-changes/` for issue, branch, verification, pull-request, check, and merge workflows.
-- Follow `split decision → concern review → serial shipping to main`. Deployment and package publication always require separate explicit authorization.
+- Follow `split decision → concern review → feature pull request to develop → separately authorized release pull request to main`. Deployment and package publication always require separate explicit authorization.
 - Read the applicable contract under `docs/features/` before changing established behavior.
 - Read `docs/architecture.md` before changing service boundaries, provider adapters, repository execution, artifacts, or reports.
 - Read `docs/operations/local-development.md` before running the web service or an actual agent benchmark.
+- Read `docs/operations/ci.md` before changing workflows, required checks, or branch policy.
 
 ## Product invariants
 
