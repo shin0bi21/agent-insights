@@ -5,14 +5,15 @@ description: Add, change, fix, or refactor Repo Automation Score product behavio
 
 # Develop Feature
 
-1. Read the applicable contract under `docs/features/` and `docs/architecture.md` completely.
-2. Read `docs/development/adding-a-feature.md`. For provider work, also read `docs/development/adding-a-provider.md`.
-3. Write a compact acceptance ledger covering states, failures, permissions, artifacts, accessibility, and provider neutrality.
-4. Inspect one matching implementation and its tests before editing.
-5. Keep browser interaction separate from privileged local execution. Keep agent-specific behavior behind the provider boundary.
-6. Add narrow tests for domain logic and boundary validation. Preserve auditable prompts and evidence.
-7. Run `npm test`, applicable `node --check` commands from `AGENTS.md`, and `git diff --check`.
-8. Verify the acceptance ledger and report checks actually run plus genuine limitations.
+1. Read the applicable contract under `docs/features/` completely.
+2. Classify the work as adding or updating behavior and read `docs/development/adding-a-feature.md` or `docs/development/updating-a-feature.md`.
+3. Use `docs/architecture/README.md` and `docs/development/README.md` to select only the frontend, backend, database, provider, evaluator, and interaction guides that own the change. Read `docs/operations/local-development.md` before starting or restarting services.
+4. Write a compact acceptance ledger covering states, failures, permissions, durable evidence and cleanup, accessibility, and provider neutrality.
+5. Inspect one matching implementation and its tests before editing. Settle persisted and API contracts before their browser consumers.
+6. Keep browser interaction separate from privileged local execution. Keep agent-specific behavior behind the provider boundary.
+7. Add narrow tests for domain logic, persistence, boundary validation, and interaction as applicable. Preserve auditable normalized evidence without retaining private reasoning or unnecessary raw artifacts.
+8. Use `docs/operations/testing.md` to run the affected checks plus `git diff --check`. Run `npm run validate:skills` whenever repository skills change.
+9. Verify the acceptance ledger and report checks actually run plus genuine limitations.
 
 Do not make target repositories conform to this product's structure. Model repository capabilities and applicable templates explicitly.
 

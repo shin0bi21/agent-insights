@@ -14,7 +14,7 @@ Keep the shipping orchestrator on the strongest available tier. The only delegat
 1. Confirm branch, upstream, complete tracked and untracked diff, stashes, existing issues, and open pull requests.
 2. Reuse the latest `split-changes` concern map. Run that workflow first for a large or mixed diff without a current map.
 3. Require high- and medium-severity review findings to be resolved. Explicitly accept or defer remaining low-severity findings.
-4. Verify `results/`, logs, prompts, patches, local paths, credentials, and database files are ignored and absent from the diff and history.
+4. Verify local databases, temporary run data, logs, prompts, patches, repository paths, and credentials are ignored and absent from the diff and history.
 5. Present the issue and branch groups before remote changes. A request to commit, push, ship, or merge authorizes only the feature workflow through `develop`.
 
 ## Ship one concern

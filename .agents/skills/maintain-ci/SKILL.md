@@ -10,7 +10,7 @@ Evolve CI without weakening the merge gate or confusing local and remote verific
 ## Establish the execution path
 
 1. Read `docs/operations/ci.md` completely.
-2. Read `docs/architecture.md` when changing topology, ownership boundaries, or build behavior.
+2. Read `docs/architecture/ci.md` when changing topology, ownership boundaries, or build behavior.
 3. Inspect the affected workflow, its package scripts, and every command those scripts invoke.
 4. Trace pull-request behavior for both `develop` and `main`.
 
@@ -32,8 +32,8 @@ Compare equivalent successful runs. Separate queue delay, wall time, runner cons
 
 1. Keep changes at the narrowest ownership layer and avoid duplicating package commands in workflow YAML.
 2. Verify triggers, branch filters, conditions, permissions, concurrency, caching, timeouts, and required-check names.
-3. Run the affected local commands. For the complete current merge gate run `npm run backend:check`, `npm test`, `npm run web:check`, `npm run test:web`, `npm run backend:build`, and `npm run web:build`.
+3. Run the affected local commands. For the complete current merge gate run `npm run validate:skills`, `npm run validate:docs`, `npm run backend:check`, `npm test`, `npm run web:check`, `npm run test:web`, `npm run backend:build`, and `npm run web:build`.
 4. Run `npm run validate:skills` whenever repository skills change.
-5. Update `docs/operations/ci.md` and `docs/architecture.md` when policy or ownership changes.
+5. Update `docs/operations/ci.md` and `docs/architecture/ci.md` when policy or ownership changes.
 
 Report checks run, GitHub-only behavior that remains unverified, expected timing or runner-use effects, and branch-protection follow-up.

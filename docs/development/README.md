@@ -1,13 +1,26 @@
-# Development
+# Development handbook
 
-Work from contracts outward:
+Use this handbook when adding or changing product code. Feature documents explain current behavior; architecture documents explain why boundaries exist; this directory gives the implementation order.
 
-1. Read the applicable feature contract under `docs/features/`.
-2. Read `docs/architecture.md` for the boundary being changed.
-3. Preserve provider-neutral domain objects and structured evidence.
-4. Add the narrowest authoritative tests with the change.
-5. Run `npm test` and applicable syntax or smoke checks.
+1. Read the applicable contract under [`docs/features/`](../features/README.md).
+2. Start with [Adding a feature](adding-a-feature.md) or [Updating a feature](updating-a-feature.md).
+3. Follow only the backend, frontend, provider, or evaluator guides that own the change.
+4. Use [Testing](../operations/testing.md) for focused verification.
+5. Finish with [Review and shipping](review-and-shipping.md).
 
-Use [Adding a feature](adding-a-feature.md) for new product behavior, [Adding an agent provider](adding-a-provider.md) for another agentic platform, and [Adding an evaluator](adding-an-evaluator.md) for scoring changes.
+## Guide map
 
-Before shipping, follow [Review and shipping](review-and-shipping.md): make the top-level split decision, review each concern with current verification evidence, and ship approved concerns serially through an issue-numbered branch and pull request into `develop`. Returning to clean synchronized `develop` completes feature shipping. A release pull request to `main`, deployment, and package publication each require separate authorization.
+| Task | Guide |
+|---|---|
+| Understand the stack | [Stack guide](stack/README.md) |
+| Add product behavior | [Adding a feature](adding-a-feature.md) |
+| Change existing behavior | [Updating a feature](updating-a-feature.md) |
+| Change run persistence | [Database changes](backend/database-changes.md) and [run persistence](backend/run-persistence.md) |
+| Change the Express boundary or orchestration | [Backend architecture](../architecture/backend.md) |
+| Change the browser workflow | [Frontend application](frontend/application-workflows.md) |
+| Add or change a reusable overlay | [Frontend interactions](frontend/interactions.md) |
+| Add an agent platform | [Adding a provider](providers/adding-a-provider.md) |
+| Change scoring or scenarios | [Adding or changing an evaluator](evaluators/adding-an-evaluator.md) |
+| Review and ship | [Review and shipping](review-and-shipping.md) |
+
+The source tree remains authoritative for exact filenames. Add documentation when it provides a durable contract, procedure, or ownership map—not merely a second inventory of code.

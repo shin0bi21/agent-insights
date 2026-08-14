@@ -9,7 +9,7 @@ Make one read-only concern map. Do not edit, test, stash, commit, or make remote
 
 When delegation and tier selection are available, assign this complete read-only workflow to one lower-cost worker at low reasoning. Do not use multiple split workers. Keep the primary orchestrator on the strongest available tier to verify the returned map against the complete inventory and own downstream decisions. If delegation is unavailable, run it directly.
 
-1. Inspect branch status and every tracked and untracked path. Distinguish intentional source changes from ignored run artifacts and generated frontend output.
+1. Inspect branch status and every tracked and untracked path. Distinguish intentional source changes from the ignored local SQLite database, temporary run data, and generated frontend output.
 2. Group independently reviewable and shippable behavior, not directories. Keep one feature's frontend, backend, tests, contracts, and documentation together when they implement one outcome.
 3. Separate provider adapters, evaluator methodology, product features, workflow tooling, and unrelated fixes when they can ship independently. Record dependencies and hunk-level ownership where concerns share files.
 4. For each concern record its acceptance scope, exact paths or hunks, dependencies, authoritative checks, unresolved questions, and work that must remain local or uncommitted.
@@ -18,4 +18,4 @@ When delegation and tier selection are available, assign this complete read-only
 
 The map is a logical plan, not permission to create all branches at once. Shipping prepares and merges one concern at a time from freshly synchronized `develop`; only then may it prepare the next concern.
 
-Never include `results/`, prompts, patches, logs, repository paths, or local databases in a concern intended for GitHub.
+Never include the local SQLite database, temporary run data, prompts, patches, logs, repository paths, or credentials in a concern intended for GitHub.
