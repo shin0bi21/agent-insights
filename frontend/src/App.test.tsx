@@ -4,6 +4,7 @@ import App, { formatDuration, summarizeBenchmarkProgress } from './App';
 
 afterEach(() => {
   cleanup();
+  vi.clearAllMocks();
   localStorage.clear();
   delete document.documentElement.dataset.theme;
 });
@@ -105,4 +106,111 @@ test('separates the current run from run history', async () => {
   expect(screen.queryByText('Finished feature')).not.toBeInTheDocument();
   expect(screen.queryByText('Active feature')).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'History' })).toHaveAttribute('aria-current', 'page');
+});
+
+test('keeps start and retry disabled when any historical record is still running', async () => {
+  const completed = { id: 'newer', createdAt: '2026-08-14T02:00:00.000Z', status: 'completed', provider: 'codex', model: 'luna', reasoningEffort: 'low', featureType: 'frontend', description: 'Finished.', comparison: null };
+  const running = { id: 'older', createdAt: '2026-08-14T01:00:00.000Z', status: 'running', repo: '/tmp/repo', provider: 'codex', model: 'luna', reasoningEffort: 'low', featureType: 'frontend', description: 'Still running.', comparison: null };
+  vi.mocked(fetch).mockImplementation(async input => {
+    const requestPath = String(input);
+    if (requestPath.endsWith('/api/providers')) return { ok: true, json: async () => [{ id: 'codex', label: 'Codex', models: [{ id: 'luna', label: 'Luna' }] }] } as Response;
+    if (requestPath.endsWith('/api/runs')) return { ok: true, json: async () => [completed, running] } as Response;
+    return { ok: true, json: async () => [] } as Response;
+  });
+  render(<App />);
+  expect(await screen.findByText('completed')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Run in progress' })).toBeDisabled();
+});
+
+test('retries an interrupted run with its recorded configuration', async () => {
+  const interrupted = { id: 'stale', createdAt: new Date().toISOString(), status: 'interrupted', repo: '/tmp/repo', provider: 'codex', model: 'gpt-5.6-terra', reasoningEffort: 'low', featureType: 'frontend', description: 'Build Tasks.', artifactPath: '/tmp/stale', progress: '', comparison: null };
+  const retried = { ...interrupted, id: 'retry', status: 'running', createdAt: new Date().toISOString() };
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    const requestPath = String(input);
+    if (requestPath.endsWith('/api/providers')) return { ok: true, json: async () => [{ id: 'codex', label: 'Codex', models: [{ id: 'gpt-5.6-terra', label: 'Terra' }] }] } as Response;
+    if (requestPath.endsWith('/api/runs') && init?.method === 'POST') return { ok: true, json: async () => retried } as Response;
+    if (requestPath.endsWith('/api/runs')) return { ok: true, json: async () => [interrupted] } as Response;
+    return { ok: true, json: async () => [] } as Response;
+  });
+  render(<App />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Retry Run' }));
+  await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/runs', expect.objectContaining({ method: 'POST', body: JSON.stringify({ repo: '/tmp/repo', provider: 'codex', model: 'gpt-5.6-terra', reasoningEffort: 'low', featureType: 'frontend', description: 'Build Tasks.' }) })));
+  expect(await screen.findByText('Run in progress')).toBeInTheDocument();
+});
+
+test('requires the matching repository to be reconnected for a durable historical retry', async () => {
+  const interrupted = { id: 'stale', createdAt: new Date().toISOString(), status: 'interrupted', repositoryName: 'my-webapp', provider: 'codex', model: 'gpt-5.6-terra', reasoningEffort: 'low', featureType: 'frontend', description: 'Build Tasks.', comparison: null };
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    const requestPath = String(input);
+    if (requestPath.endsWith('/api/providers')) return { ok: true, json: async () => [{ id: 'codex', label: 'Codex', models: [{ id: 'gpt-5.6-terra', label: 'Terra' }] }] } as Response;
+    if (requestPath.endsWith('/api/repository')) return { ok: true, json: async () => ({ repo: '/tmp/my-webapp', skills: [{ name: 'develop-feature', description: '', path: '' }] }) } as Response;
+    if (requestPath.endsWith('/api/runs') && init?.method === 'POST') return { ok: true, json: async () => ({ ...interrupted, id: 'retry', status: 'running' }) } as Response;
+    if (requestPath.endsWith('/api/runs')) return { ok: true, json: async () => [interrupted] } as Response;
+    return { ok: true, json: async () => [] } as Response;
+  });
+  render(<App />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Retry Run' }));
+  expect(await screen.findByText('Reconnect my-webapp before retrying this run.')).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Local repository path'), { target: { value: '/tmp/my-webapp' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+  await screen.findByText(/Repository ready/);
+  fireEvent.click(screen.getByRole('button', { name: 'Retry Run' }));
+  await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/runs', expect.objectContaining({ method: 'POST', body: expect.stringContaining('"repo":"/tmp/my-webapp"') })));
+});
+
+test('does not retry durable history against a different connected repository', async () => {
+  const interrupted = { id: 'stale', createdAt: new Date().toISOString(), status: 'interrupted', repositoryName: 'my-webapp', provider: 'codex', model: 'gpt-5.6-terra', reasoningEffort: 'low', featureType: 'frontend', description: 'Build Tasks.', comparison: null };
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    const requestPath = String(input);
+    if (requestPath.endsWith('/api/providers')) return { ok: true, json: async () => [{ id: 'codex', label: 'Codex', models: [{ id: 'gpt-5.6-terra', label: 'Terra' }] }] } as Response;
+    if (requestPath.endsWith('/api/repository')) return { ok: true, json: async () => ({ repo: '/tmp/other-repo', skills: [{ name: 'develop-feature', description: '', path: '' }] }) } as Response;
+    if (requestPath.endsWith('/api/runs') && init?.method === 'POST') throw new Error('should not start');
+    if (requestPath.endsWith('/api/runs')) return { ok: true, json: async () => [interrupted] } as Response;
+    return { ok: true, json: async () => [] } as Response;
+  });
+  render(<App />);
+  fireEvent.change(screen.getByLabelText('Local repository path'), { target: { value: '/tmp/other-repo' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+  await screen.findByText(/Repository ready/);
+  fireEvent.click(screen.getByRole('button', { name: 'Retry Run' }));
+  expect(await screen.findByText('Reconnect my-webapp before retrying this run.')).toBeInTheDocument();
+  expect(fetch).not.toHaveBeenCalledWith('/api/runs', expect.objectContaining({ method: 'POST' }));
+});
+
+test('does not let an older refresh overwrite a newly retried run', async () => {
+  const interrupted = { id: 'stale', createdAt: new Date().toISOString(), status: 'interrupted', repo: '/tmp/repo', provider: 'codex', model: 'gpt-5.6-terra', reasoningEffort: 'low', featureType: 'frontend', description: 'Build Tasks.', comparison: null };
+  const retried = { ...interrupted, id: 'retry', status: 'running', createdAt: new Date().toISOString() };
+  let reads = 0;
+  let resolveRefresh: ((response: Response) => void) | undefined;
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    const requestPath = String(input);
+    if (requestPath.endsWith('/api/providers')) return { ok: true, json: async () => [{ id: 'codex', label: 'Codex', models: [{ id: 'gpt-5.6-terra', label: 'Terra' }] }] } as Response;
+    if (requestPath.endsWith('/api/runs') && init?.method === 'POST') return { ok: true, json: async () => retried } as Response;
+    if (requestPath.endsWith('/api/runs')) {
+      reads += 1;
+      if (reads === 1) return { ok: true, json: async () => [interrupted] } as Response;
+      return await new Promise<Response>(resolve => { resolveRefresh = resolve; });
+    }
+    return { ok: true, json: async () => [] } as Response;
+  });
+  render(<App />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Refresh' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Retry Run' }));
+  expect(await screen.findByText('Run in progress')).toBeInTheDocument();
+  resolveRefresh?.({ ok: true, json: async () => [interrupted] } as Response);
+  await waitFor(() => expect(screen.getByText('Run in progress')).toBeInTheDocument());
+  expect(screen.queryByRole('button', { name: 'Retry Run' })).not.toBeInTheDocument();
+});
+
+test('keeps completed cards compact and marks them successful', async () => {
+  vi.mocked(fetch).mockImplementation(async input => {
+    const requestPath = String(input);
+    if (requestPath.endsWith('/api/providers')) return { ok: true, json: async () => [] } as Response;
+    if (requestPath.endsWith('/api/runs')) return { ok: true, json: async () => [{ id: 'done', createdAt: new Date().toISOString(), status: 'completed', repo: '/tmp/repo', provider: 'codex', model: 'gpt-5.6-luna', reasoningEffort: 'low', featureType: 'frontend', description: 'Build Tasks.', artifactPath: '/tmp/done', progress: '', comparison: { comparison: [{ medianScore: 100, medianDurationMs: 1000, inputTokens: 100, cachedInputTokens: 50, outputTokens: 10, missedRequirements: {}, implementationReview: null }] } }] } as Response;
+    return { ok: true, json: async () => [] } as Response;
+  });
+  render(<App />);
+  expect(await screen.findByText('completed')).toHaveClass('completed');
+  expect(screen.queryByRole('button', { name: 'View Job Configuration' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'View Report' })).toBeInTheDocument();
 });
