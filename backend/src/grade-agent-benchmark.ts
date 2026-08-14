@@ -4,13 +4,13 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import process from 'node:process';
-import { matchFiles, readJson, runCommand, writeJson } from './agent-benchmark-lib.mjs';
+import { matchFiles, readJson, runCommand, writeJson } from './agent-benchmark-lib.js';
 
 function argumentsFor(argv) {
   const values = {};
   for (let index = 0; index < argv.length; index += 2) values[argv[index]] = argv[index + 1];
   if (!values['--worktree'] || !values['--scenario'] || !values['--base-sha'] || !values['--output']) {
-    throw new Error('Usage: grade-agent-benchmark.mjs --worktree PATH --scenario PATH --base-sha SHA --output PATH');
+    throw new Error('Usage: npx tsx backend/src/grade-agent-benchmark.ts --worktree PATH --scenario PATH --base-sha SHA --output PATH');
   }
   return values;
 }

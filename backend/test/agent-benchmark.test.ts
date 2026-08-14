@@ -4,10 +4,10 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import test from 'node:test';
 import { resolve } from 'node:path';
-import { gradeStructure } from '../src/grade-agent-benchmark.mjs';
-import { parseJsonLines, spawnWithCapture, summarizeEvents } from '../src/agent-benchmark-lib.mjs';
-import { codexArguments, comparison, parseArguments } from '../src/run-agent-benchmark.mjs';
-import { chooseRepositoryDirectory, composePrompt, createRunManager, discoverSkills, providerCatalog, validateRepository } from '../src/benchmark-web-lib.mjs';
+import { gradeStructure } from '../src/grade-agent-benchmark.js';
+import { parseJsonLines, spawnWithCapture, summarizeEvents } from '../src/agent-benchmark-lib.js';
+import { codexArguments, comparison, parseArguments } from '../src/run-agent-benchmark.js';
+import { chooseRepositoryDirectory, composePrompt, createRunManager, discoverSkills, providerCatalog, validateRepository } from '../src/benchmark-web-lib.js';
 
 test('parses a bounded benchmark matrix', () => {
   assert.deepEqual(parseArguments([

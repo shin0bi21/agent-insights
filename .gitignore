@@ -17,6 +17,7 @@ logs/
 node_modules/
 coverage/
 frontend/dist/
+backend/dist/
 
 # Local configuration and secrets
 .env

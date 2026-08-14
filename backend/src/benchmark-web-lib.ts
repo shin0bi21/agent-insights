@@ -1,7 +1,7 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, resolve, sep } from 'node:path';
-import { ensureDirectory, readJson, writeJson } from './agent-benchmark-lib.mjs';
+import { ensureDirectory, readJson, writeJson } from './agent-benchmark-lib.js';
 
 export const ALLOWED_EFFORTS = ['low', 'medium', 'high'];
 export const AGENT_PROVIDERS = {
@@ -117,7 +117,7 @@ export function createRunManager({ root, spawnProcess = spawn }) {
     writeFileSync(logPath, '');
     const config = { id, createdAt: new Date().toISOString(), status: 'running', repo, provider: provider.id, model: input.model, reasoningEffort: input.reasoningEffort, skill: input.skill || null, description: String(input.description).trim() };
     writeJson(resolve(directory, 'web-run.json'), config);
-    const args = [resolve(root, 'backend/src/run-agent-benchmark.mjs'), '--repo', repo, '--scenario', 'tasks-page', '--models', input.model, '--reasoning-efforts', input.reasoningEffort, '--repetitions', '1', '--prompt-file', promptPath, '--output-dir', directory];
+    const args = ['--import', 'tsx', resolve(root, 'backend/src/run-agent-benchmark.ts'), '--repo', repo, '--scenario', 'tasks-page', '--models', input.model, '--reasoning-efforts', input.reasoningEffort, '--repetitions', '1', '--prompt-file', promptPath, '--output-dir', directory];
     const output = writeFileSync;
     const child = spawnProcess(process.execPath, args, { cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
     active.set(id, { status: 'running', exitCode: null, child });

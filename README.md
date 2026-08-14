@@ -5,7 +5,7 @@ Repo Automation Score is a local-first application that measures how reliably AI
 The first scenario asks agents to build the Staff Tasks feature from the commit immediately before Tasks existed. Its manifest overlays a pinned snapshot of current repository guidance onto that historical application revision, then creates a disposable synthetic baseline commit so guidance is visible but excluded from the candidate diff and score. Scenario manifests are versioned; do not combine results from different prompt or guidance versions in one model comparison. Preview the matrix:
 
 ```bash
-node backend/src/run-agent-benchmark.mjs \
+npx tsx backend/src/run-agent-benchmark.ts \
   --repo /Users/bilalkhan/Desktop/my-webapp \
   --scenario tasks-page \
   --dry-run
@@ -14,7 +14,7 @@ node backend/src/run-agent-benchmark.mjs \
 Run a single-model pilot before spending time on a full matrix:
 
 ```bash
-node backend/src/run-agent-benchmark.mjs \
+npx tsx backend/src/run-agent-benchmark.ts \
   --repo /Users/bilalkhan/Desktop/my-webapp \
   --scenario tasks-page \
   --models gpt-5.6-luna \

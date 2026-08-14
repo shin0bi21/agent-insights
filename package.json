@@ -8,28 +8,35 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test backend/test/agent-benchmark.test.mjs",
+    "test": "tsx --test backend/test/agent-benchmark.test.ts",
     "test:web": "vitest run",
-    "dry-run": "node backend/src/run-agent-benchmark.mjs --scenario tasks-page --dry-run",
-    "web": "npm run web:build && node backend/src/benchmark-web-server.mjs",
-    "web:dev": "node backend/src/benchmark-web-dev.mjs",
+    "dry-run": "tsx backend/src/run-agent-benchmark.ts --scenario tasks-page --dry-run",
+    "web": "npm run web:build && tsx backend/src/benchmark-web-server.ts",
+    "web:dev": "tsx backend/src/benchmark-web-dev.ts",
     "web:build": "vite build",
-    "web:check": "tsc --noEmit"
+    "web:check": "tsc --noEmit",
+    "backend:check": "tsc -p backend/tsconfig.json --noEmit",
+    "backend:build": "tsc -p backend/tsconfig.json"
   },
   "dependencies": {
     "@vitejs/plugin-react": "5.0.4",
-    "vite": "7.3.6",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "vite": "7.3.6"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "7.0.1",
     "@testing-library/dom": "10.4.1",
+    "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.2",
+    "@types/node": "24.3.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "jsdom": "26.1.0",
+    "tsx": "4.20.5",
     "typescript": "5.9.2",
     "vitest": "3.2.7"
+  },
+  "directories": {
+    "lib": "backend/dist"
   }
 }

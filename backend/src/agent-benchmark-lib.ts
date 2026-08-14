@@ -34,7 +34,7 @@ export function summarizeEvents(events) {
   return { usage, finalMessage, failed };
 }
 
-export function runCommand(command, args, options = {}) {
+export function runCommand(command: string, args: string[], options: { cwd?: string; env?: NodeJS.ProcessEnv; maxBuffer?: number; timeoutMs?: number } = {}) {
   const startedAt = Date.now();
   try {
     const stdout = execFileSync(command, args, {
@@ -46,7 +46,7 @@ export function runCommand(command, args, options = {}) {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     return { command: [command, ...args], exitCode: 0, durationMs: Date.now() - startedAt, stdout, stderr: '' };
-  } catch (error) {
+  } catch (error: any) {
     return {
       command: [command, ...args],
       exitCode: typeof error.status === 'number' ? error.status : 1,
@@ -57,7 +57,7 @@ export function runCommand(command, args, options = {}) {
   }
 }
 
-export function spawnWithCapture(command, args, { cwd, env, timeoutMs, stdoutPath, stderrPath, input }) {
+export function spawnWithCapture(command: string, args: string[], { cwd, env, timeoutMs, stdoutPath, stderrPath, input }: any): Promise<any> {
   return new Promise(resolveRun => {
     const startedAt = Date.now();
     writeFileSync(stdoutPath, '');
@@ -73,7 +73,7 @@ export function spawnWithCapture(command, args, { cwd, env, timeoutMs, stdoutPat
       if (!child.pid) return;
       try {
         process.kill(process.platform === 'win32' ? child.pid : -child.pid, signal);
-      } catch (error) {
+      } catch (error: any) {
         if (error?.code !== 'ESRCH') throw error;
       }
     };

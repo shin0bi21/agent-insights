@@ -5,14 +5,14 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { basename, dirname, resolve } from 'node:path';
 import process from 'node:process';
-import { ensureDirectory, parseJsonLines, readJson, runCommand, spawnWithCapture, summarizeEvents, writeJson } from './agent-benchmark-lib.mjs';
-import { grade } from './grade-agent-benchmark.mjs';
+import { ensureDirectory, parseJsonLines, readJson, runCommand, spawnWithCapture, summarizeEvents, writeJson } from './agent-benchmark-lib.js';
+import { grade } from './grade-agent-benchmark.js';
 
 const HARNESS_ROOT = resolve(import.meta.dirname, '../..');
 const SCENARIOS_ROOT = resolve(HARNESS_ROOT, 'scenarios');
 
 function usage() {
-  console.log(`Usage: node backend/src/run-agent-benchmark.mjs --scenario ID [options]
+  console.log(`Usage: npx tsx backend/src/run-agent-benchmark.ts --scenario ID [options]
 
 Options:
   --repo PATH           Target Git repository (required).
@@ -31,8 +31,8 @@ Options:
   -h, --help            Show help.`);
 }
 
-export function parseArguments(argv) {
-  const options = { keepWorktrees: false, skipEvaluation: false, skipSetup: false, dryRun: false, codexBin: process.env.CODEX_BIN ?? 'codex' };
+export function parseArguments(argv: string[]): any {
+  const options: any = { keepWorktrees: false, skipEvaluation: false, skipSetup: false, dryRun: false, codexBin: process.env.CODEX_BIN ?? 'codex' };
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
     if (value === '-h' || value === '--help') return { help: true };
@@ -177,11 +177,12 @@ async function executeRun({ repoRoot, baseSha, scenarioPath, manifest, model, re
   ].join('\n'));
   const setup = [];
   if (!options.skipSetup) {
-    for (const [command, args] of [
+    const setupCommands: Array<[string, string[]]> = [
       ['npm', ['ci']],
       ['npm', ['ci', '--prefix', 'frontend']],
       ['npm', ['ci', '--prefix', 'backend']],
-    ]) {
+    ];
+    for (const [command, args] of setupCommands) {
       const result = runCommand(command, args, {
         cwd: worktree,
         env: benchmarkEnv,
@@ -288,7 +289,7 @@ async function main() {
   for (const row of report.comparison) lines.push(`| ${row.model} | ${row.reasoningEffort} | ${row.successfulRuns}/${row.runs} | ${row.medianScore ?? '—'}% | ${row.minimumScore ?? '—'}–${row.maximumScore ?? '—'}% | ${row.scoreStdDev ?? '—'} | ${row.allGatesPassRate}% | ${row.medianDurationMs ?? '—'} ms | ${row.outputTokens} |`);
   lines.push('', '## Recurring missed contracts', '');
   for (const row of report.comparison) {
-    const misses = Object.entries(row.missedRequirements).sort((a, b) => b[1] - a[1]).map(([id, count]) => `${id} (${count}/${row.runs})`).join(', ');
+    const misses = Object.entries(row.missedRequirements as Record<string, number>).sort((a, b) => b[1] - a[1]).map(([id, count]) => `${id} (${count}/${row.runs})`).join(', ');
     lines.push(`- ${row.model} / ${row.reasoningEffort}: ${misses || 'none'}`);
   }
   writeFileSync(resolve(outputRoot, 'comparison.md'), `${lines.join('\n')}\n`);

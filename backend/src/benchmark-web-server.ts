@@ -4,7 +4,7 @@ import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 import process from 'node:process';
-import { chooseRepositoryDirectory, createRunManager, discoverSkills, providerCatalog, validateRepository } from './benchmark-web-lib.mjs';
+import { chooseRepositoryDirectory, createRunManager, discoverSkills, providerCatalog, validateRepository } from './benchmark-web-lib.js';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const PUBLIC_ROOT = resolve(ROOT, 'frontend/dist');

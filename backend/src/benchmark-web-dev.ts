@@ -3,11 +3,11 @@
 import { spawn } from 'node:child_process';
 
 const children = [
-  spawn(process.execPath, ['--watch', 'backend/src/benchmark-web-server.mjs'], { stdio: 'inherit' }),
+  spawn('npm', ['exec', '--', 'tsx', 'watch', 'backend/src/benchmark-web-server.ts'], { stdio: 'inherit' }),
   spawn('npm', ['exec', '--', 'vite'], { stdio: 'inherit' }),
 ];
 
-function stop(signal = 'SIGTERM') {
+function stop(signal: NodeJS.Signals = 'SIGTERM') {
   for (const child of children) child.kill(signal);
 }
 

@@ -25,8 +25,8 @@
 
 ## Verification
 
-- Run `npm test` for JavaScript, runner, evaluator, provider, or discovery changes.
-- Run `node --check backend/src/benchmark-web-server.mjs`, `npm run web:check`, and `npm run test:web` for server or frontend changes.
+- Run `npm test` for backend runner, evaluator, provider, or discovery changes.
+- Run `npm run backend:check`, `npm run web:check`, and `npm run test:web` for server or frontend changes.
 - Validate changed skills with the skill validator named in `.agents/skills/develop-feature/SKILL.md`.
 - Use a dry run before spending agent tokens on a changed scenario or matrix.
 - Do not claim an agent, check, or template works unless that exact path was exercised.
