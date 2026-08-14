@@ -5,7 +5,7 @@ run-data/
 logs/
 *.log
 
-# Local databases (the application does not currently require one)
+# Local application databases
 *.db
 *.db-*
 *.sqlite

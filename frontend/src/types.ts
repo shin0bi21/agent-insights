@@ -22,7 +22,8 @@ export interface RunActivityNode { id: string; parentId: string | null; kind: 'p
 export interface RunRecord {
   id: string;
   createdAt: string;
-  repo: string;
+  repo?: string;
+  repositoryName?: string;
   provider?: string;
   model: string;
   reasoningEffort: string;
@@ -30,8 +31,8 @@ export interface RunRecord {
   featureType?: FeatureType;
   description: string;
   status: RunStatus;
-  artifactPath: string;
-  progress: string;
+  artifactPath?: string;
+  progress?: string;
   activity?: RunActivityNode[];
   comparison: { comparison: ComparisonRow[] } | null;
 }

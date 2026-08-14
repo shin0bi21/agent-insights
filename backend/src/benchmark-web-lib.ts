@@ -1,7 +1,12 @@
 import { execFileSync, spawn } from 'node:child_process';
-import { closeSync, existsSync, openSync, readFileSync, readSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { basename, dirname, resolve, sep } from 'node:path';
-import { ensureDirectory, readJson, writeJson } from './agent-benchmark-lib.js';
+import { writeJson } from './agent-benchmark-lib.js';
+import { createDatabase } from './db/client.js';
+import { databasePath } from './db/config.js';
+import { migrate } from './db/migrator.js';
+import { createRunPersistence } from './services/run-persistence.js';
 
 export const ALLOWED_EFFORTS = ['low', 'medium', 'high'];
 export const ALLOWED_FEATURE_TYPES = ['frontend', 'backend', 'full-stack'];
@@ -125,21 +130,27 @@ function readFileTail(path, maximumBytes = 1_000_000) {
 }
 
 export function createRunManager({ root, spawnProcess = spawn }) {
-  const runsRoot = ensureDirectory(resolve(root, 'results', 'web-runs'));
+  const databaseFile = databasePath(root);
+  migrate({ path: databaseFile });
+  const database = createDatabase(databaseFile);
+  const persistence = createRunPersistence(database);
   const active = new Map();
+  const ready = database.updateTable('runs').set({ status: 'interrupted', completed_at: new Date().toISOString() }).where('status', 'in', ['queued', 'preparing', 'running', 'evaluating']).execute();
 
-  function list() {
-    return readdirSync(runsRoot, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => get(entry.name))
-      .filter(Boolean).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  async function list() {
+    await ready;
+    const stored = await persistence.listRuns();
+    return Promise.all(stored.map(run => active.has(run.id) ? get(run.id) : run));
   }
 
-  function get(id) {
+  async function get(id) {
     if (!/^[a-zA-Z0-9-]+$/.test(id)) return null;
-    const directory = resolve(runsRoot, id);
-    const configPath = resolve(directory, 'web-run.json');
-    if (!within(runsRoot, directory) || !existsSync(configPath)) return null;
-    const config = readJson(configPath);
-    const comparisonPath = resolve(directory, 'comparison.json');
+    await ready;
+    const stored = await persistence.getRun(id);
+    if (!stored) return null;
+    const live = active.get(id);
+    if (!live) return { ...stored, progress: '', activity: [] };
+    const directory = live.directory;
     const runnerLogPath = resolve(directory, 'runner.log');
     const candidateLogs = readdirSync(directory, { withFileTypes: true })
       .filter(entry => entry.isDirectory())
@@ -153,21 +164,20 @@ export function createRunManager({ root, spawnProcess = spawn }) {
       existsSync(runnerLogPath) ? `Runner\n${readFileSync(runnerLogPath, 'utf8')}` : '',
       ...candidateLogs.map(path => `Agent progress\n${readFileSync(path, 'utf8')}`),
     ].filter(Boolean);
-    const live = active.get(id);
-    const persistedStatus = config.status === 'running' ? 'interrupted' : (config.status ?? 'failed');
-    const status = live?.status ?? (existsSync(comparisonPath) ? 'completed' : persistedStatus);
+    const status = live.status;
     return {
-      ...config,
+      ...stored,
+      repo: live.repo,
       status,
-      exitCode: live?.exitCode ?? config.exitCode ?? null,
+      exitCode: live.exitCode,
       artifactPath: directory,
       progress: progressSections.join('\n\n').slice(-40_000),
       activity: eventLogs.flatMap(path => parseAgentActivity(readFileTail(path), status)),
-      comparison: existsSync(comparisonPath) ? readJson(comparisonPath) : null,
     };
   }
 
-  function start(input) {
+  async function start(input) {
+    await ready;
     const { repo } = validateAutomationGuidance(input.repo);
     const provider = AGENT_PROVIDERS[input.provider];
     if (!provider) throw new Error('Unsupported agent provider.');
@@ -175,7 +185,7 @@ export function createRunManager({ root, spawnProcess = spawn }) {
     if (!ALLOWED_EFFORTS.includes(input.reasoningEffort)) throw new Error('Unsupported reasoning effort.');
     if (!ALLOWED_FEATURE_TYPES.includes(input.featureType)) throw new Error('Unsupported feature type.');
     const id = `run-${new Date().toISOString().replaceAll(/[^0-9]/g, '').slice(0, 17)}-${Math.random().toString(36).slice(2, 7)}`;
-    const directory = ensureDirectory(resolve(runsRoot, id));
+    const directory = mkdtempSync(resolve(tmpdir(), `repo-automation-score-${id}-`));
     const scenarioPrompt = readFileSync(resolve(root, 'scenarios/tasks-page/prompt.md'), 'utf8');
     const prompt = composePrompt({ scenarioPrompt, featureType: input.featureType, description: input.description });
     const promptPath = resolve(directory, 'prompt.md');
@@ -184,20 +194,31 @@ export function createRunManager({ root, spawnProcess = spawn }) {
     writeFileSync(logPath, '');
     const config = { id, createdAt: new Date().toISOString(), status: 'running', repo, provider: provider.id, model: input.model, reasoningEffort: input.reasoningEffort, featureType: input.featureType, description: String(input.description).trim() };
     writeJson(resolve(directory, 'web-run.json'), config);
+    const baseRevision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
+    await persistence.createRun({ id, repositoryName: basename(repo), baseRevision, featureType: input.featureType, description: config.description, preparedPrompt: prompt, promptTemplateVersion: 'tasks-page:v1', evaluationTemplate: 'tasks-page', provider: provider.id, agent: input.model, reasoningLevel: input.reasoningEffort, createdAt: config.createdAt });
+    await persistence.updateRunStatus(id, 'running');
     const args = ['--import', 'tsx', resolve(root, 'backend/src/run-agent-benchmark.ts'), '--repo', repo, '--scenario', 'tasks-page', '--feature-type', input.featureType, '--models', input.model, '--reasoning-efforts', input.reasoningEffort, '--repetitions', '1', '--prompt-file', promptPath, '--output-dir', directory];
     const output = writeFileSync;
     const child = spawnProcess(process.execPath, args, { cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
-    active.set(id, { status: 'running', exitCode: null, child });
+    active.set(id, { status: 'running', exitCode: null, child, directory, repo });
     const append = chunk => output(logPath, chunk, { flag: 'a' });
     child.stdout.on('data', append);
     child.stderr.on('data', append);
-    child.on('close', exitCode => {
+    child.on('close', async exitCode => {
       const status = exitCode === 0 ? 'completed' : 'failed';
-      active.set(id, { status, exitCode, child: null });
+      active.set(id, { status, exitCode, child: null, directory, repo });
       writeJson(resolve(directory, 'web-run.json'), { ...config, status, exitCode });
+      try {
+        await persistence.importRun(directory, { replaceExisting: true });
+        active.delete(id);
+        rmSync(directory, { recursive: true, force: true });
+      } catch (error) {
+        await persistence.updateRunStatus(id, 'failed');
+        console.error(`Could not normalize run ${id}; temporary evidence retained at ${directory}.`, error);
+      }
     });
-    return get(id);
+    return await get(id);
   }
 
-  return { get, list, start };
+  return { get, list, start, close: () => database.destroy() };
 }
