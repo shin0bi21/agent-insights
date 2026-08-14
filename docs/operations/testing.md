@@ -6,6 +6,7 @@ Use the narrowest authoritative test while developing and the complete affected 
 |---|---|
 | Backend behavior, persistence, evaluator, and API | `npm test` |
 | Backend TypeScript | `npm run backend:check` |
+| Root Node tooling TypeScript | `npm run tooling:check` |
 | Backend production build | `npm run backend:build` |
 | Frontend components and workflows | `npm run test:web` |
 | Frontend TypeScript | `npm run web:check` |
@@ -13,7 +14,7 @@ Use the narrowest authoritative test while developing and the complete affected 
 | Repository skills | `npm run validate:skills` |
 | Local documentation links | `npm run validate:docs` |
 | Migration state | `npm run db:status` |
-| Compose interpolation and overrides | `npm run docker:config` |
+| Compose interpolation in default and Docker-enabled modes | `npm run docker:config` |
 | Production container image | `npm run docker:build` |
 | Whitespace and patch integrity | `git diff --check` |
 

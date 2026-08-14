@@ -6,7 +6,12 @@ const MAX_SKILL_NAME_LENGTH = 64;
 
 type Frontmatter = Record<string, string>;
 
-function parseFrontmatter(contents: string, source: string): { frontmatter: Frontmatter; body: string } {
+interface ParsedSkill {
+  frontmatter: Frontmatter;
+  body: string;
+}
+
+function parseFrontmatter(contents: string, source: string): ParsedSkill {
   const normalized = contents.replaceAll("\r\n", "\n");
   const match = normalized.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
 
@@ -16,7 +21,9 @@ function parseFrontmatter(contents: string, source: string): { frontmatter: Fron
 
   const frontmatter: Frontmatter = {};
   for (const [index, line] of match[1].split("\n").entries()) {
-    if (!line.trim()) continue;
+    if (!line.trim()) {
+      continue;
+    }
 
     const field = line.match(/^([a-z][a-z0-9_-]*):\s*(.+)$/);
     if (!field) {
@@ -53,21 +60,30 @@ async function validateSkill(skillDirectory: string): Promise<void> {
   const { frontmatter, body } = parseFrontmatter(await readFile(skillFile, "utf8"), skillFile);
   const keys = Object.keys(frontmatter).sort();
   const unsupported = keys.filter((key) => key !== "name" && key !== "description");
+
   if (unsupported.length > 0) {
     throw new Error(`${skillFile}: unsupported frontmatter field(s): ${unsupported.join(", ")}`);
   }
 
   const name = frontmatter.name;
-  if (!name) throw new Error(`${skillFile}: missing required 'name' field`);
-  if (!frontmatter.description) throw new Error(`${skillFile}: missing required 'description' field`);
-  if (!SKILL_NAME.test(name)) throw new Error(`${skillFile}: name must use lowercase hyphen-case`);
+  if (!name) {
+    throw new Error(`${skillFile}: missing required 'name' field`);
+  }
+  if (!frontmatter.description) {
+    throw new Error(`${skillFile}: missing required 'description' field`);
+  }
+  if (!SKILL_NAME.test(name)) {
+    throw new Error(`${skillFile}: name must use lowercase hyphen-case`);
+  }
   if (name.length > MAX_SKILL_NAME_LENGTH) {
     throw new Error(`${skillFile}: name exceeds ${MAX_SKILL_NAME_LENGTH} characters`);
   }
   if (name !== path.basename(directory)) {
     throw new Error(`${skillFile}: name '${name}' must match directory '${path.basename(directory)}'`);
   }
-  if (!body) throw new Error(`${skillFile}: skill instructions must not be empty`);
+  if (!body) {
+    throw new Error(`${skillFile}: skill instructions must not be empty`);
+  }
 }
 
 async function main(): Promise<void> {
@@ -91,7 +107,9 @@ async function main(): Promise<void> {
   }
 
   if (failures.length > 0) {
-    for (const failure of failures) console.error(`invalid ${failure}`);
+    for (const failure of failures) {
+      console.error(`invalid ${failure}`);
+    }
     process.exitCode = 1;
   }
 }
