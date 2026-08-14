@@ -8,10 +8,13 @@
 - Before deep review or shipping, use `.agents/skills/split-changes/` to decide whether the diff is one concern or produce the authoritative concern map.
 - Use `.agents/skills/review-changes/` for repeatable concern-level review and `.agents/skills/ship-changes/` for issue, branch, verification, pull-request, check, and merge workflows.
 - Follow `split decision → concern review → feature pull request to develop → separately authorized release pull request to main`. Deployment and package publication always require separate explicit authorization.
+- Ship mixed work serially. Complete one concern through merge, return to clean synchronized `develop`, and only then prepare the next concern.
+- Use `.agents/skills/maintain-ci/` for GitHub Actions, required checks, branch policy, runner composition, caching, and CI performance work.
 - Read the applicable contract under `docs/features/` before changing established behavior.
 - Read `docs/architecture.md` before changing service boundaries, provider adapters, repository execution, artifacts, or reports.
 - Read `docs/operations/local-development.md` before running the web service or an actual agent benchmark.
 - Read `docs/operations/ci.md` before changing workflows, required checks, or branch policy.
+- Read `docs/development/review-and-shipping.md` before reviewing or shipping accumulated changes.
 
 ## Product invariants
 

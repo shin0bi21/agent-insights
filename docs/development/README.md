@@ -10,4 +10,4 @@ Work from contracts outward:
 
 Use [Adding a feature](adding-a-feature.md) for new product behavior, [Adding an agent provider](adding-a-provider.md) for another agentic platform, and [Adding an evaluator](adding-an-evaluator.md) for scoring changes.
 
-Before shipping, make the top-level split decision, review each concern with current verification evidence, and ship approved concerns serially through an issue-numbered branch and pull request. Returning to a clean synchronized `main` completes shipping; deployment or package publication is a separate authorization.
+Before shipping, follow [Review and shipping](review-and-shipping.md): make the top-level split decision, review each concern with current verification evidence, and ship approved concerns serially through an issue-numbered branch and pull request into `develop`. Returning to clean synchronized `develop` completes feature shipping. A release pull request to `main`, deployment, and package publication each require separate authorization.
