@@ -9,7 +9,16 @@ Review without editing, creating issues or branches, committing, or making remot
 
 For multiple substantial concerns, delegate independent read-only review lanes to lower-cost workers at low reasoning while the strongest primary orchestrator owns severity, deduplication, cross-boundary analysis, and the final report. Escalate only lanes with demonstrated architectural, security, concurrency, or debugging complexity. Do not delegate a small or tightly coupled review, and verify worker findings before reporting them.
 
-1. Reuse the current `split-changes` concern map. If a large or mixed diff has no map, run the split workflow before deep review. Inspect the complete diff and map changed files to contracts under `docs/features/`, `docs/architecture.md`, and `AGENTS.md`.
+Load only the references relevant to the concern:
+
+- structure or ownership: `references/structure-and-ownership.md`;
+- tests or claimed verification: `references/testing.md`;
+- React rendering, overlays, or state: `references/react-state-and-interactions.md`;
+- repository paths, processes, worktrees, or cleanup: `references/path-subprocess-and-isolation.md`;
+- providers, evidence, evaluators, or reports: `references/provider-evidence-and-evaluators.md`;
+- scripts, dependencies, CI interfaces, or generated output: `references/tooling-quality.md`.
+
+1. Reuse the current `split-changes` concern map. If a large or mixed diff has no map, run the split workflow before deep review. Inspect the complete diff and map changed files to contracts under `docs/features/`, the selected documents under `docs/architecture/`, and `AGENTS.md`.
 2. Review privileged boundaries first: repository path containment, loopback exposure, subprocess arguments, credentials, worktree isolation, cancellation, and cleanup.
 3. Check that provider-specific behavior does not leak into provider-neutral UI, run, comparison, or report models.
 4. For evaluators, check applicability, version compatibility, deterministic evidence, weights, false positives, and separation of repository, agent, evaluator, and environment failures.

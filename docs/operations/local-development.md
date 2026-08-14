@@ -1,9 +1,37 @@
 # Local development
 
-Requirements are Node.js 22 or newer, Git, an authenticated agent provider CLI, and any tools required by the target repository. Docker is required only when the selected target scenario uses it.
+Use [Setup](setup.md) for first-time requirements and installation.
 
-Install pinned dependencies with `npm install`. Run backend tests with `npm test`, frontend tests with `npm run test:web`, and TypeScript checks with `npm run web:check`.
+## Start and restart
 
-Start the production-style local app with `npm run web`, then open `http://127.0.0.1:4173`. Use `npm run web:dev` for the backend watcher and Vite development server, then open `http://127.0.0.1:5173`.
+Production-style local build:
 
-The service runs with the terminal user's permissions. Do not expose it beyond loopback. Generated artifacts live under `results/`, are intentionally ignored by Git, and are not persisted to a database or remote service. Preview matrices with `--dry-run` before real execution. If a run fails, inspect its runner log, setup output, events, result, and evaluator evidence before retrying.
+```bash
+npm run web
+```
+
+Open `http://127.0.0.1:4173`.
+
+Development watchers:
+
+```bash
+npm run web:dev
+```
+
+Open the Vite URL printed by the process, normally `http://127.0.0.1:5173`. Backend TypeScript changes restart the loopback API; frontend changes use Vite hot reload. When a stale process owns a port, identify that exact listener before stopping it and restart both boundaries together.
+
+## Database commands
+
+```bash
+npm run db:migrate
+npm run db:status
+npm run db:import-results
+```
+
+`db:import-results` is a one-time idempotent upgrade path for installations with legacy `results/web-runs`. Verify imported run/pass counts and report projections before deleting source data. The default database lives at `data/repo-automation-score.sqlite`; override it with `REPO_AUTOMATION_SCORE_DB_PATH` for tests or packaging.
+
+## Run execution
+
+The service runs with the terminal user's permissions and must remain on loopback. Active files live in the operating system's temporary directory and are deleted after successful normalization. A normalization failure retains the temporary directory and prints its path.
+
+Preview scenario and matrix configuration with `--dry-run` before a real run. Docker is used only when the target scenario requires it. Do not call a run successful until the exact provider, evaluator, and report path has completed.

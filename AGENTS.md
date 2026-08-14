@@ -11,8 +11,9 @@
 - Ship mixed work serially. Complete one concern through merge, return to clean synchronized `develop`, and only then prepare the next concern.
 - Use `.agents/skills/maintain-ci/` for GitHub Actions, required checks, branch policy, runner composition, caching, and CI performance work.
 - Read the applicable contract under `docs/features/` before changing established behavior.
-- Read `docs/architecture.md` before changing service boundaries, provider adapters, repository execution, artifacts, or reports.
-- Read `docs/operations/local-development.md` before running the web service or an actual agent benchmark.
+- Start feature work in `docs/development/adding-a-feature.md` or `docs/development/updating-a-feature.md`, then follow only the linked boundary guides that apply.
+- Use `docs/architecture/README.md` to select the frontend, backend, database, provider/execution, evidence/report, or CI contract before changing that boundary.
+- Read `docs/operations/local-development.md` before running the web service and `docs/operations/running-benchmarks.md` before an actual agent benchmark.
 - Read `docs/operations/ci.md` before changing workflows, required checks, or branch policy.
 - Read `docs/development/review-and-shipping.md` before reviewing or shipping accumulated changes.
 
@@ -23,7 +24,7 @@
 - Never require target repositories to copy this repository's documentation or folder structure.
 - Separate universal automation-readiness evidence from template- or scenario-specific expectations.
 - Never execute candidate work in the attached repository's working tree; use a pinned revision and isolated worktree.
-- Preserve raw prompts, events, patches, checks, timing, usage, and evaluator output so reports remain auditable.
+- Preserve prompts and normalized events, checks, timing, usage, changes, evaluations, findings, and recommendations in the local database so reports remain auditable. Treat raw provider output and runner artifacts as temporary execution data and remove them after successful normalization.
 - Bind the local service to loopback by default and validate all repository and artifact paths at the server boundary.
 - Treat PDF as a view of structured report data, not the report's source of truth.
 
@@ -31,6 +32,6 @@
 
 - Run `npm test` for backend runner, evaluator, provider, or discovery changes.
 - Run `npm run backend:check`, `npm run web:check`, and `npm run test:web` for server or frontend changes.
-- Validate changed skills with the skill validator named in `.agents/skills/develop-feature/SKILL.md`.
+- Validate changed skills with `npm run validate:skills`.
 - Use a dry run before spending agent tokens on a changed scenario or matrix.
 - Do not claim an agent, check, or template works unless that exact path was exercised.

@@ -5,3 +5,14 @@ Automation readiness estimates how reliably an agent can understand, change, ver
 The universal score covers discoverable instructions, reproducible setup, safe isolation, clear task and ownership boundaries, deterministic verification, observable failures, and complete run evidence. Empirical agent success and consistency are reported separately from static readiness so a strong model does not hide weak repository guidance.
 
 Optional templates add domain expectations such as React/Vite UI composition, full-stack CRUD layering, API compatibility, CLI behavior, libraries, or mobile applications. Template scores remain separate and state their applicability. Reference comparisons evaluate contracts, behavior, and repository-mandated ownership; they do not require byte-identical directories.
+
+## Implementation ownership
+
+- Scenario and evaluator configuration: `scenarios/`
+- Structural grading: `backend/src/grade-agent-benchmark.ts`
+- Execution evidence: `backend/src/run-agent-benchmark.ts`
+- Durable findings: `backend/src/services/run-persistence.ts`
+
+## Changing this feature
+
+Use the `maintain-evaluators` skill and [evaluator guide](../development/evaluators/adding-an-evaluator.md). Version scoring inputs and run a dry run before any paid matrix.
