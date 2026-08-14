@@ -10,7 +10,7 @@ feature branch -> pull request -> develop -> release pull request -> main
 
 Feature work targets `develop`. Pull requests targeting `main` are accepted only from `develop`; the CI merge-path job rejects every other source branch. Merging to either branch does not deploy or publish the package.
 
-CI validates repository skills and local documentation links, then runs the backend and frontend TypeScript checks, tests, production builds, both Compose configurations, and the production Docker image build. Configure both jobs in `.github/workflows/ci.yml` as required checks in the GitHub branch rulesets for `develop` and `main`; workflow YAML cannot enable repository rulesets by itself.
+CI validates repository skills and local documentation links, then runs root-tooling, backend, and frontend TypeScript checks, tests, production builds, the single Compose configuration in default and Docker-enabled modes, and the production Docker image build. Configure both jobs in `.github/workflows/ci.yml` as required checks in the GitHub branch rulesets for `develop` and `main`; workflow YAML cannot enable repository rulesets by itself.
 
 Repository skill validation is part of the same required verification job. The validator is implemented in TypeScript and has no Python or PyYAML dependency.
 
@@ -19,6 +19,7 @@ Local verification uses the same commands:
 ```bash
 npm run validate:skills
 npm run validate:docs
+npm run tooling:check
 npm run backend:check
 npm test
 npm run web:check
