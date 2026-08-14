@@ -10,6 +10,7 @@ import { grade } from './grade-agent-benchmark.js';
 
 const HARNESS_ROOT = resolve(import.meta.dirname, '../..');
 const SCENARIOS_ROOT = resolve(HARNESS_ROOT, 'scenarios');
+const FEATURE_TYPES = ['frontend', 'backend', 'full-stack'];
 
 function usage() {
   console.log(`Usage: npx tsx backend/src/run-agent-benchmark.ts --scenario ID [options]
@@ -22,6 +23,7 @@ Options:
   --base-ref REF        Revision shared by every run (default: scenario baseline).
   --output-dir PATH     Artifact directory (default: results/<timestamp>).
   --prompt-file PATH    Override the scenario prompt with a prepared prompt file.
+  --feature-type TYPE   Scope evaluation to frontend, backend, or full-stack.
   --timeout-minutes N   Override per-agent timeout.
   --codex-bin PATH      Codex executable (default: codex).
   --skip-setup          Do not install dependencies before agent execution.
@@ -50,12 +52,14 @@ export function parseArguments(argv: string[]): any {
     else if (value === '--base-ref') options.baseRef = next;
     else if (value === '--output-dir') options.outputDir = next;
     else if (value === '--prompt-file') options.promptFile = resolve(next);
+    else if (value === '--feature-type') options.featureType = next;
     else if (value === '--timeout-minutes') options.timeoutMinutes = Number(next);
     else if (value === '--codex-bin') options.codexBin = next;
     else throw new Error(`Unknown option ${value}.`);
   }
   if (!options.scenario) throw new Error('--scenario is required.');
   if (!options.repo) throw new Error('--repo is required.');
+  if (options.featureType !== undefined && !FEATURE_TYPES.includes(options.featureType)) throw new Error('--feature-type must be frontend, backend, or full-stack.');
   if (options.repetitions !== undefined && (!Number.isInteger(options.repetitions) || options.repetitions < 1)) throw new Error('--repetitions must be a positive integer.');
   if (options.timeoutMinutes !== undefined && (!Number.isFinite(options.timeoutMinutes) || options.timeoutMinutes <= 0)) throw new Error('--timeout-minutes must be positive.');
   return options;
@@ -139,6 +143,7 @@ export function comparison(results) {
       scoreStdDev: scoreStdDev === null ? null : Math.round(scoreStdDev * 10) / 10,
       allGatesPassRate: runs.length ? Math.round(1000 * runs.filter(run => run.grade?.failedChecks?.length === 0).length / runs.length) / 10 : 0,
       missedRequirements,
+      implementationReview: runs[0].grade?.implementationReview ?? null,
       medianDurationMs: median(durations),
       inputTokens: runs.reduce((total, run) => total + run.agent.usage.inputTokens, 0),
       cachedInputTokens: runs.reduce((total, run) => total + run.agent.usage.cachedInputTokens, 0),
@@ -224,7 +229,7 @@ async function executeRun({ repoRoot, baseSha, scenarioPath, manifest, model, re
   writeFileSync(resolve(runOutput, 'changes.patch'), execFileSync('git', ['diff', '--binary', '--no-ext-diff', runBaseSha], { cwd: worktree, encoding: 'utf8', maxBuffer: 100 * 1024 * 1024 }));
   let gradeResult = null;
   if (!options.skipEvaluation && agent.exitCode === 0 && !agent.timedOut) {
-    gradeResult = grade({ worktree, scenarioPath, baseSha: runBaseSha, env: benchmarkEnv });
+    gradeResult = grade({ worktree, scenarioPath, baseSha: runBaseSha, featureType: options.featureType, env: benchmarkEnv });
     writeJson(resolve(runOutput, 'grade.json'), gradeResult);
   }
   const result = {
@@ -236,6 +241,7 @@ async function executeRun({ repoRoot, baseSha, scenarioPath, manifest, model, re
       percentage: gradeResult.percentage,
       failedChecks: gradeResult.checks.filter(check => !check.passed).map(check => check.id),
       failedRequirements: gradeResult.requirements.filter(requirement => !requirement.passed).map(requirement => requirement.id),
+      implementationReview: gradeResult.implementationReview,
     } : null,
   };
   writeJson(resolve(runOutput, 'result.json'), result);
@@ -269,7 +275,8 @@ async function main() {
   const matrix = models.flatMap(model => reasoningEfforts.flatMap(reasoningEffort => (
     Array.from({ length: repetitions }, (_, index) => ({ model, reasoningEffort, repetition: index + 1 }))
   )));
-  const runPlan = { scenario: manifest.id, repoRoot, baseRef, baseSha, guidance: manifest.guidance ?? null, timeoutMinutes: options.timeoutMinutes, outputRoot, matrix };
+  options.featureType ??= 'full-stack';
+  const runPlan = { scenario: manifest.id, featureType: options.featureType, repoRoot, baseRef, baseSha, guidance: manifest.guidance ?? null, timeoutMinutes: options.timeoutMinutes, outputRoot, matrix };
   if (options.dryRun) { console.log(JSON.stringify(runPlan, null, 2)); return; }
   ensureDirectory(outputRoot);
   writeJson(resolve(outputRoot, 'plan.json'), runPlan);
@@ -291,6 +298,15 @@ async function main() {
   for (const row of report.comparison) {
     const misses = Object.entries(row.missedRequirements as Record<string, number>).sort((a, b) => b[1] - a[1]).map(([id, count]) => `${id} (${count}/${row.runs})`).join(', ');
     lines.push(`- ${row.model} / ${row.reasoningEffort}: ${misses || 'none'}`);
+  }
+  lines.push('', '## Implementation review', '');
+  for (const row of report.comparison) {
+    lines.push(`### ${row.model} / ${row.reasoningEffort}`, '');
+    for (const section of row.implementationReview ?? []) {
+      lines.push(`#### ${section.label}`, '', '| Subsection | Status | Agent output | Reference |', '|---|---|---|---|');
+      for (const item of section.items) lines.push(`| ${item.label} | ${item.implemented ? 'Implemented' : 'Missing'} | ${item.candidateFiles.join('<br>') || '—'} | ${item.referenceFiles.join('<br>') || '—'} |`);
+      lines.push('');
+    }
   }
   writeFileSync(resolve(outputRoot, 'comparison.md'), `${lines.join('\n')}\n`);
   console.log(resolve(outputRoot, 'comparison.md'));

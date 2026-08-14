@@ -4,7 +4,7 @@ import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 import process from 'node:process';
-import { chooseRepositoryDirectory, createRunManager, discoverSkills, providerCatalog, validateRepository } from './benchmark-web-lib.js';
+import { chooseRepositoryDirectory, createRunManager, providerCatalog, validateAutomationGuidance } from './benchmark-web-lib.js';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const PUBLIC_ROOT = resolve(ROOT, 'frontend/dist');
@@ -47,8 +47,7 @@ export async function handleRequest(request, response) {
     }
     if (request.method === 'POST' && url.pathname === '/api/repository') {
       const input = await body(request);
-      const repo = validateRepository(input.repo);
-      return json(response, 200, { repo, skills: discoverSkills(repo) });
+      return json(response, 200, validateAutomationGuidance(input.repo));
     }
     if (request.method === 'POST' && url.pathname === '/api/pick-directory') return json(response, 200, { repo: chooseRepositoryDirectory() });
     if (request.method === 'POST' && url.pathname === '/api/runs') return json(response, 202, manager.start(await body(request)));

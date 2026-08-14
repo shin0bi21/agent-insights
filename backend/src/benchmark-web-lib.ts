@@ -4,6 +4,7 @@ import { basename, dirname, resolve, sep } from 'node:path';
 import { ensureDirectory, readJson, writeJson } from './agent-benchmark-lib.js';
 
 export const ALLOWED_EFFORTS = ['low', 'medium', 'high'];
+export const ALLOWED_FEATURE_TYPES = ['frontend', 'backend', 'full-stack'];
 export const AGENT_PROVIDERS = {
   codex: { id: 'codex', label: 'Codex', models: [{ id: 'gpt-5.6-sol', label: 'Sol' }, { id: 'gpt-5.6-luna', label: 'Luna' }, { id: 'gpt-5.6-terra', label: 'Terra' }] },
 };
@@ -55,11 +56,21 @@ export function discoverSkills(repoPath) {
     .map(skillMetadata));
 }
 
-export function composePrompt({ scenarioPrompt, skill, description }) {
+export function validateAutomationGuidance(repoPath) {
+  const repo = validateRepository(repoPath);
+  const agentsPath = resolve(repo, 'AGENTS.md');
+  if (!existsSync(agentsPath) || !statSync(agentsPath).isFile()) throw new Error('Repository is not automation-ready: AGENTS.md is required.');
+  const skills = discoverSkills(repo);
+  if (!skills.length) throw new Error('Repository is not automation-ready: add at least one SKILL.md under .agents/skills or .codex/skills.');
+  return { repo, skills };
+}
+
+export function composePrompt({ scenarioPrompt, featureType = 'full-stack', description }) {
   const requested = String(description ?? '').trim();
   if (!requested) throw new Error('Feature description is required.');
-  const skillInstruction = skill ? `\n\n## Selected repository skill\nUse the repository skill \`${skill}\` for this work.` : '';
-  return `${scenarioPrompt.trim()}${skillInstruction}\n\n## User feature description\n${requested}\n`;
+  if (!ALLOWED_FEATURE_TYPES.includes(featureType)) throw new Error('Unsupported feature type.');
+  const scope = featureType === 'frontend' ? 'Implement frontend scope only. Assume the required backend contracts already exist.' : featureType === 'backend' ? 'Implement backend scope only. Assume the frontend consumer already exists.' : 'Implement the complete full-stack scope, including persistence, backend API, and frontend behavior.';
+  return `${scenarioPrompt.trim()}\n\n## Requested feature scope\n${scope}\n\nFollow AGENTS.md and let its workflow choose the applicable repository skill. Do not guess when repository guidance is missing.\n\n## User feature description\n${requested}\n`;
 }
 
 export function createRunManager({ root, spawnProcess = spawn }) {
@@ -100,24 +111,23 @@ export function createRunManager({ root, spawnProcess = spawn }) {
   }
 
   function start(input) {
-    const repo = validateRepository(input.repo);
+    const { repo } = validateAutomationGuidance(input.repo);
     const provider = AGENT_PROVIDERS[input.provider];
     if (!provider) throw new Error('Unsupported agent provider.');
     if (!provider.models.some(model => model.id === input.model)) throw new Error('Unsupported model for this provider.');
     if (!ALLOWED_EFFORTS.includes(input.reasoningEffort)) throw new Error('Unsupported reasoning effort.');
-    const skills = discoverSkills(repo);
-    if (input.skill && !skills.some(skill => skill.name === input.skill)) throw new Error('Selected skill was not found in the repository.');
+    if (!ALLOWED_FEATURE_TYPES.includes(input.featureType)) throw new Error('Unsupported feature type.');
     const id = `run-${new Date().toISOString().replaceAll(/[^0-9]/g, '').slice(0, 17)}-${Math.random().toString(36).slice(2, 7)}`;
     const directory = ensureDirectory(resolve(runsRoot, id));
     const scenarioPrompt = readFileSync(resolve(root, 'scenarios/tasks-page/prompt.md'), 'utf8');
-    const prompt = composePrompt({ scenarioPrompt, skill: input.skill, description: input.description });
+    const prompt = composePrompt({ scenarioPrompt, featureType: input.featureType, description: input.description });
     const promptPath = resolve(directory, 'prompt.md');
     const logPath = resolve(directory, 'runner.log');
     writeFileSync(promptPath, prompt);
     writeFileSync(logPath, '');
-    const config = { id, createdAt: new Date().toISOString(), status: 'running', repo, provider: provider.id, model: input.model, reasoningEffort: input.reasoningEffort, skill: input.skill || null, description: String(input.description).trim() };
+    const config = { id, createdAt: new Date().toISOString(), status: 'running', repo, provider: provider.id, model: input.model, reasoningEffort: input.reasoningEffort, featureType: input.featureType, description: String(input.description).trim() };
     writeJson(resolve(directory, 'web-run.json'), config);
-    const args = ['--import', 'tsx', resolve(root, 'backend/src/run-agent-benchmark.ts'), '--repo', repo, '--scenario', 'tasks-page', '--models', input.model, '--reasoning-efforts', input.reasoningEffort, '--repetitions', '1', '--prompt-file', promptPath, '--output-dir', directory];
+    const args = ['--import', 'tsx', resolve(root, 'backend/src/run-agent-benchmark.ts'), '--repo', repo, '--scenario', 'tasks-page', '--feature-type', input.featureType, '--models', input.model, '--reasoning-efforts', input.reasoningEffort, '--repetitions', '1', '--prompt-file', promptPath, '--output-dir', directory];
     const output = writeFileSync;
     const child = spawnProcess(process.execPath, args, { cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
     active.set(id, { status: 'running', exitCode: null, child });

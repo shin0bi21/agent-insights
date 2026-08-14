@@ -4,10 +4,10 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import test from 'node:test';
 import { resolve } from 'node:path';
-import { gradeStructure } from '../src/grade-agent-benchmark.js';
+import { buildImplementationReview, gradeStructure } from '../src/grade-agent-benchmark.js';
 import { parseJsonLines, spawnWithCapture, summarizeEvents } from '../src/agent-benchmark-lib.js';
 import { codexArguments, comparison, parseArguments } from '../src/run-agent-benchmark.js';
-import { chooseRepositoryDirectory, composePrompt, createRunManager, discoverSkills, providerCatalog, validateRepository } from '../src/benchmark-web-lib.js';
+import { chooseRepositoryDirectory, composePrompt, createRunManager, discoverSkills, providerCatalog, validateAutomationGuidance, validateRepository } from '../src/benchmark-web-lib.js';
 
 test('parses a bounded benchmark matrix', () => {
   assert.deepEqual(parseArguments([
@@ -25,6 +25,8 @@ test('parses a bounded benchmark matrix', () => {
     repetitions: 3,
   });
   assert.throws(() => parseArguments(['--repo', '/tmp/app', '--scenario', 'x', '--repetitions', '0']), /positive integer/);
+  assert.equal(parseArguments(['--repo', '/tmp/app', '--scenario', 'x', '--feature-type', 'backend']).featureType, 'backend');
+  assert.throws(() => parseArguments(['--repo', '/tmp/app', '--scenario', 'x', '--feature-type', 'mobile']), /frontend, backend, or full-stack/);
 });
 
 test('accepts a prepared prompt file for web-launched runs', () => {
@@ -53,6 +55,15 @@ test('structural grading requires every file pattern and marker', () => {
   const failed = gradeStructure(manifest, ['backend/availability.ts'], 'PageBody');
   assert.equal(failed[0].earned, 0);
   assert.deepEqual(failed[0].missingFiles, ['frontend/**/*.tsx']);
+});
+
+test('builds a reference-derived implementation review without scoring directory parity', () => {
+  const manifest = { reviewSections: [{ id: 'backend', label: 'Backend', items: [{ id: 'services', label: 'Services', patterns: ['backend/src/services/*task*.ts'] }, { id: 'policies', label: 'Policies', patterns: ['backend/src/policies/*task*.ts'] }] }] };
+  const review = buildImplementationReview(manifest, ['backend/src/services/taskService.ts'], ['backend/src/services/taskService.ts', 'backend/src/policies/taskPolicy.ts']);
+  assert.deepEqual(review[0].items, [
+    { id: 'services', label: 'Services', implemented: true, candidateFiles: ['backend/src/services/taskService.ts'], referenceFiles: ['backend/src/services/taskService.ts'] },
+    { id: 'policies', label: 'Policies', implemented: false, candidateFiles: [], referenceFiles: ['backend/src/policies/taskPolicy.ts'] },
+  ]);
 });
 
 test('the Tasks page manifest has a stable 100-point rubric', () => {
@@ -140,19 +151,33 @@ test('discovers repository-local skills and reads their metadata', () => {
     execFileSync('git', ['init', '--quiet'], { cwd: directory });
     const skillDirectory = resolve(directory, '.agents/skills/develop-feature');
     mkdirSync(skillDirectory, { recursive: true });
+    writeFileSync(resolve(directory, 'AGENTS.md'), '# Agent guidance\n');
     writeFileSync(resolve(skillDirectory, 'SKILL.md'), '---\nname: develop-feature\ndescription: Build application features.\n---\n');
     assert.equal(validateRepository(directory), directory);
     assert.deepEqual(discoverSkills(directory), [{ name: 'develop-feature', description: 'Build application features.', path: resolve(skillDirectory, 'SKILL.md') }]);
+    assert.equal(validateAutomationGuidance(directory).skills.length, 1);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
 });
 
-test('composes an auditable feature prompt with the selected skill', () => {
-  const prompt = composePrompt({ scenarioPrompt: '# Scenario\nDo the work.', skill: 'develop-feature', description: 'Build Tasks.' });
-  assert.match(prompt, /Use the repository skill `develop-feature`/);
+test('composes an auditable feature prompt that delegates skill routing to AGENTS.md', () => {
+  const prompt = composePrompt({ scenarioPrompt: '# Scenario\nDo the work.', featureType: 'frontend', description: 'Build Tasks.' });
+  assert.match(prompt, /Implement frontend scope only/);
+  assert.match(prompt, /Follow AGENTS\.md and let its workflow choose/);
   assert.match(prompt, /## User feature description\nBuild Tasks\./);
   assert.throws(() => composePrompt({ scenarioPrompt: 'x', description: '  ' }), /required/);
+  assert.throws(() => composePrompt({ scenarioPrompt: 'x', featureType: 'mobile', description: 'Build.' }), /Unsupported feature type/);
+});
+
+test('rejects repositories without both AGENTS.md and discoverable skills', () => {
+  const directory = mkdtempSync(resolve(tmpdir(), 'agent-benchmark-guidance-'));
+  try {
+    execFileSync('git', ['init', '--quiet'], { cwd: directory });
+    assert.throws(() => validateAutomationGuidance(directory), /AGENTS\.md is required/);
+    writeFileSync(resolve(directory, 'AGENTS.md'), '# Guidance\n');
+    assert.throws(() => validateAutomationGuidance(directory), /at least one SKILL\.md/);
+  } finally { rmSync(directory, { recursive: true, force: true }); }
 });
 
 test('exposes models through an agent-provider catalog', () => {
