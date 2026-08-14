@@ -4,7 +4,7 @@
 
 A run combines a repository revision, frontend/backend/full-stack scope, prepared prompt, provider and model setup, isolation policy, evaluator version, and optional template or reference. The user selects scope and describes the feature; the target repository's `AGENTS.md` owns workflow and skill routing.
 
-The Home view contains the setup workflow and exactly one current card: the newest run. Every earlier run belongs in History.
+The Home view contains the setup workflow and exactly one current card: the newest run. History contains every run, including that newest run, so it remains a complete archive.
 
 ## Lifecycle and isolation
 

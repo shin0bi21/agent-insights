@@ -5,7 +5,7 @@
 ## State ownership
 
 - API run records are the authoritative remote state.
-- The newest run appears on Home; every earlier run appears in History.
+- The newest run appears on Home; History includes every run, including that newest run.
 - Form input, selected view, theme, and open overlays are local UI state.
 - Starting or retrying is disabled while a run is active.
 - Historical retries require a newly connected repository when no transient path exists.

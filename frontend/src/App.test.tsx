@@ -73,7 +73,7 @@ test('persists the selected appearance from Settings', () => {
   expect(localStorage.getItem('repo-score-theme')).toBe('dark');
 });
 
-test('separates the current run from run history', async () => {
+test('shows only the latest run on Home and every run in History', async () => {
   vi.mocked(fetch).mockImplementation(async input => {
     const path = String(input);
     const value = path.endsWith('/api/providers')
@@ -100,8 +100,11 @@ test('separates the current run from run history', async () => {
   expect(screen.queryByText('Finished feature')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'History' }));
   expect(screen.getByRole('heading', { name: 'Run history' })).toBeInTheDocument();
+  expect(screen.getByText('Frontend request')).toBeInTheDocument();
   expect(screen.getByText('Full-stack request')).toBeInTheDocument();
   expect(screen.getByText('Backend request')).toBeInTheDocument();
+  expect(screen.getByText('running')).toBeInTheDocument();
+  expect(screen.getByText('completed')).toBeInTheDocument();
   expect(screen.getByText('interrupted')).toBeInTheDocument();
   expect(screen.queryByText('Finished feature')).not.toBeInTheDocument();
   expect(screen.queryByText('Active feature')).not.toBeInTheDocument();
