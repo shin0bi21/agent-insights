@@ -18,15 +18,63 @@ test('SQLite migrations create typed run persistence and summary views', async (
     const database = createDatabase(path);
     try {
       await database.insertInto('runs').values({
-        id: 'run-1', repository_name: 'sample-app', base_revision: 'base', guidance_revision: 'guidance', working_tree_dirty: 0,
-        feature_type: 'frontend', description: 'Build a page', prepared_prompt: 'Prompt', prompt_template_version: 'v1',
-        evaluation_template: 'tasks-page', requested_repetitions: 1, requested_review_passes: 1, status: 'completed', created_at: '2026-08-14T00:00:00.000Z', started_at: null, completed_at: null, runner_version: null, provider_cli_version: null,
+        id: 'run-1',
+        repository_name: 'sample-app',
+        base_revision: 'base',
+        guidance_revision: 'guidance',
+        working_tree_dirty: 0,
+        feature_type: 'frontend',
+        description: 'Build a page',
+        prepared_prompt: 'Prompt',
+        prompt_template_version: 'v1',
+        evaluation_template: 'tasks-page',
+        requested_repetitions: 1,
+        requested_review_passes: 1,
+        status: 'completed',
+        created_at: '2026-08-14T00:00:00.000Z',
+        started_at: null,
+        completed_at: null,
+        runner_version: null,
+        provider_cli_version: null,
       }).execute();
-      await database.insertInto('run_agent_setup').values({ run_id: 'run-1', provider: 'codex', agent: 'luna', reasoning_level: 'medium' }).execute();
-      await database.insertInto('run_attempts').values({ id: 'attempt-1', run_id: 'run-1', attempt_number: 1, status: 'completed', started_at: null, completed_at: null, failure_summary: null }).execute();
+      await database.insertInto('run_agent_setup').values({
+        run_id: 'run-1',
+        provider: 'codex',
+        agent: 'luna',
+        reasoning_level: 'medium',
+      }).execute();
+      await database.insertInto('run_attempts').values({
+        id: 'attempt-1',
+        run_id: 'run-1',
+        attempt_number: 1,
+        status: 'completed',
+        started_at: null,
+        completed_at: null,
+        failure_summary: null,
+      }).execute();
       await database.insertInto('run_passes').values([
-        { id: 'pass-0', attempt_id: 'attempt-1', pass_number: 0, pass_type: 'initial', status: 'completed', started_at: null, completed_at: null, duration_ms: 100, final_response: null },
-        { id: 'pass-1', attempt_id: 'attempt-1', pass_number: 1, pass_type: 'review', status: 'completed', started_at: null, completed_at: null, duration_ms: 50, final_response: null },
+        {
+          id: 'pass-0',
+          attempt_id: 'attempt-1',
+          pass_number: 0,
+          pass_type: 'initial',
+          status: 'completed',
+          started_at: null,
+          completed_at: null,
+          duration_ms: 100,
+          final_response: null,
+        },
+        {
+          id: 'pass-1',
+          attempt_id: 'attempt-1',
+          pass_number: 1,
+          pass_type: 'review',
+          status: 'completed',
+          started_at: null,
+          completed_at: null,
+          duration_ms: 50,
+          final_response: null,
+        },
       ]).execute();
       await database.insertInto('pass_token_usage').values([
         { pass_id: 'pass-0', input_tokens: 100, cached_input_tokens: 80, output_tokens: 10, reasoning_output_tokens: 0 },
@@ -36,8 +84,24 @@ test('SQLite migrations create typed run persistence and summary views', async (
         { id: 'evaluation-0', pass_id: 'pass-0', score: 60, evaluator_version: 'v1', created_at: '2026-08-14T00:01:00.000Z' },
         { id: 'evaluation-1', pass_id: 'pass-1', score: 80, evaluator_version: 'v1', created_at: '2026-08-14T00:02:00.000Z' },
       ]).execute();
-      await database.insertInto('pass_events').values({ id: 'event-1', pass_id: 'pass-1', sequence_number: 1, event_type: 'retry', status: 'completed', occurred_at: '2026-08-14T00:01:30.000Z', summary: null, payload_json: null }).execute();
-      await database.insertInto('pass_changes').values({ id: 'change-1', pass_id: 'pass-0', file_path: 'frontend/page.tsx', change_type: 'added', lines_added: 10, lines_removed: 0 }).execute();
+      await database.insertInto('pass_events').values({
+        id: 'event-1',
+        pass_id: 'pass-1',
+        sequence_number: 1,
+        event_type: 'retry',
+        status: 'completed',
+        occurred_at: '2026-08-14T00:01:30.000Z',
+        summary: null,
+        payload_json: null,
+      }).execute();
+      await database.insertInto('pass_changes').values({
+        id: 'change-1',
+        pass_id: 'pass-0',
+        file_path: 'frontend/page.tsx',
+        change_type: 'added',
+        lines_added: 10,
+        lines_removed: 0,
+      }).execute();
 
       const attempt = await database.selectFrom('attempt_summary').selectAll().executeTakeFirstOrThrow();
       assert.equal(attempt.initial_score, 60);

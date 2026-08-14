@@ -23,7 +23,13 @@ test('Express API preserves run routes with an injected manager', async () => {
     get: id => id === 'run-1' ? { id } : null,
     start: input => { calls.push(input); return { id: 'run-2', ...input }; },
   };
-  const app = createBenchmarkApp({ root: process.cwd(), manager, providers: () => [{ id: 'codex' }] });
+  const app = createBenchmarkApp({
+    root: process.cwd(),
+    manager,
+    providers: () => [{ id: 'codex' }],
+    directoryPickerAvailable: false,
+    repositoryPath: '/workspace/repository',
+  });
   await withApp(app, async origin => {
     const health = await fetch(`${origin}/api/health`);
     assert.equal(health.status, 200);
@@ -37,7 +43,17 @@ test('Express API preserves run routes with an injected manager', async () => {
     const providerResponse = await fetch(`${origin}/api/providers`);
     assert.deepEqual(await providerResponse.json(), [{ id: 'codex' }]);
 
-    const started = await fetch(`${origin}/api/runs`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model: 'gpt-5.6-luna' }) });
+    const runtimeResponse = await fetch(`${origin}/api/runtime`);
+    assert.deepEqual(await runtimeResponse.json(), {
+      directoryPickerAvailable: false,
+      repositoryPath: '/workspace/repository',
+    });
+
+    const started = await fetch(`${origin}/api/runs`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'gpt-5.6-luna' }),
+    });
     assert.equal(started.status, 202);
     assert.deepEqual(calls, [{ model: 'gpt-5.6-luna' }]);
   });
@@ -60,11 +76,19 @@ test('Express API returns JSON for validation, parse, and not-found failures', a
     assert.equal(missing.status, 404);
     assert.deepEqual(await missing.json(), { error: 'Run not found.' });
 
-    const validation = await fetch(`${origin}/api/repository`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+    const validation = await fetch(`${origin}/api/repository`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+    });
     assert.equal(validation.status, 400);
     assert.deepEqual(await validation.json(), { error: 'Repository directory does not exist.' });
 
-    const malformed = await fetch(`${origin}/api/runs`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{' });
+    const malformed = await fetch(`${origin}/api/runs`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{',
+    });
     assert.equal(malformed.status, 400);
     const payload = await malformed.json();
     assert.match(payload.error, /JSON|Unexpected/i);

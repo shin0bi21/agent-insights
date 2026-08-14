@@ -16,6 +16,8 @@ export type CreateBenchmarkAppOptions = {
   chooseDirectory?: typeof chooseRepositoryDirectory;
   providers?: typeof providerCatalog;
   validateGuidance?: typeof validateAutomationGuidance;
+  directoryPickerAvailable?: boolean;
+  repositoryPath?: string | null;
 };
 
 function errorMessage(error: unknown) {
@@ -34,6 +36,8 @@ export function createBenchmarkApp(options: CreateBenchmarkAppOptions): Express 
   const pickDirectory = options.chooseDirectory ?? chooseRepositoryDirectory;
   const getProviders = options.providers ?? providerCatalog;
   const validateGuidance = options.validateGuidance ?? validateAutomationGuidance;
+  const directoryPickerAvailable = options.directoryPickerAvailable ?? process.platform === 'darwin';
+  const repositoryPath = options.repositoryPath ?? process.env.RAS_REPOSITORY_PATH ?? null;
   const app = express();
 
   app.disable('x-powered-by');
@@ -49,6 +53,10 @@ export function createBenchmarkApp(options: CreateBenchmarkAppOptions): Express 
 
   app.get('/api/providers', (_request, response) => {
     response.set('cache-control', 'no-store').json(getProviders());
+  });
+
+  app.get('/api/runtime', (_request, response) => {
+    response.set('cache-control', 'no-store').json({ directoryPickerAvailable, repositoryPath });
   });
 
   app.get('/api/runs/:id', async (request, response) => {
