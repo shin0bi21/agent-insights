@@ -5,7 +5,7 @@ import { ensureDirectory, readJson, writeJson } from './agent-benchmark-lib.js';
 
 export const ALLOWED_EFFORTS = ['low', 'medium', 'high'];
 export const AGENT_PROVIDERS = {
-  codex: { id: 'codex', label: 'Codex', models: [{ id: 'gpt-5.6-luna', label: 'Luna' }, { id: 'gpt-5.6-terra', label: 'Terra' }] },
+  codex: { id: 'codex', label: 'Codex', models: [{ id: 'gpt-5.6-sol', label: 'Sol' }, { id: 'gpt-5.6-luna', label: 'Luna' }, { id: 'gpt-5.6-terra', label: 'Terra' }] },
 };
 
 export function providerCatalog() {
