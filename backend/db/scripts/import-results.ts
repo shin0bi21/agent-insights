@@ -7,10 +7,25 @@ import { migrate } from './migrate.js';
 export async function importResults({ path, resultsRoot, runId }: { path?: string; resultsRoot?: string; runId?: string } = {}) {
   migrate(path ? { path } : {});
   const database = createDatabase(path);
-  try { return await createRunPersistence(database).importResults({ resultsRoot: resolve(resultsRoot ?? 'results/web-runs'), runId }); }
-  finally { await closeDatabase(database); }
+  try {
+    return await createRunPersistence(database).importResults({
+      resultsRoot: resolve(resultsRoot ?? 'results/web-runs'),
+      runId,
+    });
+  } finally {
+    await closeDatabase(database);
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  importResults().then(result => process.stdout.write(`Imported ${result.filter(run => run.imported).length} run(s); ${result.filter(run => !run.imported).length} already present.\n`)).catch(error => { process.stderr.write(`${error instanceof Error ? error.stack : String(error)}\n`); process.exitCode = 1; });
+  importResults()
+    .then(result => {
+      const importedCount = result.filter(run => run.imported).length;
+      const existingCount = result.length - importedCount;
+      process.stdout.write(`Imported ${importedCount} run(s); ${existingCount} already present.\n`);
+    })
+    .catch(error => {
+      process.stderr.write(`${error instanceof Error ? error.stack : String(error)}\n`);
+      process.exitCode = 1;
+    });
 }

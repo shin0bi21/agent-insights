@@ -7,17 +7,49 @@ import { migrate } from '../db/scripts/migrate.js';
 import { createDatabase, closeDatabase } from '../src/db/client.js';
 import { createRunPersistence } from '../src/services/run-persistence.js';
 
-function writeJson(path: string, value: unknown) { writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`); }
+function writeJson(path: string, value: unknown) {
+  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
+}
 
 function fixture(root: string, id = 'run-legacy') {
   const run = join(root, id);
   const candidate = join(run, 'gpt-5.6-luna-low-run-1');
   mkdirSync(candidate, { recursive: true });
-  writeJson(join(run, 'web-run.json'), { id, createdAt: '2026-08-14T00:00:00.000Z', status: 'running', repo: '/private/example/my-webapp', provider: 'codex', model: 'gpt-5.6-luna', reasoningEffort: 'low', featureType: 'frontend', description: 'Build Tasks.' });
+  writeJson(join(run, 'web-run.json'), {
+    id,
+    createdAt: '2026-08-14T00:00:00.000Z',
+    status: 'running',
+    repo: '/private/example/my-webapp',
+    provider: 'codex',
+    model: 'gpt-5.6-luna',
+    reasoningEffort: 'low',
+    featureType: 'frontend',
+    description: 'Build Tasks.',
+  });
   writeFileSync(join(run, 'prompt.md'), 'Prepared prompt');
-  writeJson(join(run, 'plan.json'), { scenario: 'tasks-page', baseSha: 'base-sha', guidance: { ref: 'guidance-sha' }, matrix: [{ repetition: 1 }] });
+  writeJson(join(run, 'plan.json'), {
+    scenario: 'tasks-page',
+    baseSha: 'base-sha',
+    guidance: { ref: 'guidance-sha' },
+    matrix: [{ repetition: 1 }],
+  });
   writeJson(join(run, 'comparison.json'), { comparison: [] });
-  writeJson(join(candidate, 'result.json'), { repetition: 1, productBaseSha: 'base-sha', worktree: candidate, agent: { exitCode: 0, durationMs: 250, timedOut: false, usage: { inputTokens: 100, cachedInputTokens: 80, outputTokens: 10, reasoningOutputTokens: 2 } } });
+  writeJson(join(candidate, 'result.json'), {
+    repetition: 1,
+    productBaseSha: 'base-sha',
+    worktree: candidate,
+    agent: {
+      exitCode: 0,
+      durationMs: 250,
+      timedOut: false,
+      usage: {
+        inputTokens: 100,
+        cachedInputTokens: 80,
+        outputTokens: 10,
+        reasoningOutputTokens: 2,
+      },
+    },
+  });
   writeFileSync(join(candidate, 'final.md'), 'Done.');
   writeFileSync(join(candidate, 'changed-files.txt'), `A\t${join(candidate, 'frontend/src/Tasks.tsx')}\nM\tfrontend/src/App.tsx\n`);
   writeJson(join(candidate, 'setup.json'), [{ command: ['npm', 'ci'], exitCode: 0, durationMs: 20 }]);
@@ -28,10 +60,30 @@ function fixture(root: string, id = 'run-legacy') {
     JSON.stringify({ type: 'turn.completed', usage: { input_tokens: 100 } }),
   ].join('\n'));
   writeJson(join(candidate, 'grade.json'), {
-    scenario: 'tasks-page', scenarioVersion: 6, percentage: 90,
+    scenario: 'tasks-page',
+    scenarioVersion: 6,
+    percentage: 90,
     checks: [{ id: 'frontend', label: 'Focused tests', command: ['npm', 'test'], passed: true, durationMs: 30 }],
-    requirements: [{ id: 'frontend-layers', label: 'Frontend Layers', passed: false, points: 10, earned: 0, missingFiles: ['src/x'], missingText: [] }],
-    implementationReview: [{ id: 'frontend', label: 'Frontend implementation', items: [{ id: 'page', label: 'Tasks page', implemented: true, candidateFiles: ['frontend/src/Tasks.tsx'], referenceFiles: ['frontend/src/Tasks.tsx'] }] }],
+    requirements: [{
+      id: 'frontend-layers',
+      label: 'Frontend Layers',
+      passed: false,
+      points: 10,
+      earned: 0,
+      missingFiles: ['src/x'],
+      missingText: [],
+    }],
+    implementationReview: [{
+      id: 'frontend',
+      label: 'Frontend implementation',
+      items: [{
+        id: 'page',
+        label: 'Tasks page',
+        implemented: true,
+        candidateFiles: ['frontend/src/Tasks.tsx'],
+        referenceFiles: ['frontend/src/Tasks.tsx'],
+      }],
+    }],
   });
   return run;
 }
@@ -39,12 +91,47 @@ function fixture(root: string, id = 'run-legacy') {
 function addCandidate(run: string, repetition: number, score: number, implemented: boolean) {
   const candidate = join(run, `gpt-5.6-luna-low-run-${repetition}`);
   mkdirSync(candidate, { recursive: true });
-  writeJson(join(candidate, 'result.json'), { repetition, productBaseSha: 'base-sha', worktree: candidate, agent: { exitCode: 0, durationMs: 750, timedOut: false, usage: { inputTokens: 100, cachedInputTokens: 80, outputTokens: 10, reasoningOutputTokens: 2 } } });
+  writeJson(join(candidate, 'result.json'), {
+    repetition,
+    productBaseSha: 'base-sha',
+    worktree: candidate,
+    agent: {
+      exitCode: 0,
+      durationMs: 750,
+      timedOut: false,
+      usage: {
+        inputTokens: 100,
+        cachedInputTokens: 80,
+        outputTokens: 10,
+        reasoningOutputTokens: 2,
+      },
+    },
+  });
   writeFileSync(join(candidate, 'final.md'), `Completed ${candidate}.`);
-  writeFileSync(join(candidate, 'events.jsonl'), JSON.stringify({ type: 'item.completed', item: { id: `command-${repetition}`, type: 'command_execution', command: `npm test -- --root ${candidate} --token secret-value`, exit_code: 0, status: 'completed' } }));
+  const commandEvent = {
+    type: 'item.completed',
+    item: {
+      id: `command-${repetition}`,
+      type: 'command_execution',
+      command: `npm test -- --root ${candidate} --token secret-value`,
+      exit_code: 0,
+      status: 'completed',
+    },
+  };
+  writeFileSync(join(candidate, 'events.jsonl'), JSON.stringify(commandEvent));
   writeJson(join(candidate, 'grade.json'), {
     scenario: 'tasks-page', scenarioVersion: 6, percentage: score, checks: [], requirements: [],
-    implementationReview: [{ id: 'frontend', label: 'Frontend implementation', items: [{ id: 'page', label: 'Tasks page', implemented, candidateFiles: [join(candidate, 'frontend/src/Tasks.tsx')], referenceFiles: ['/private/reference/frontend/src/Tasks.tsx'] }] }],
+    implementationReview: [{
+      id: 'frontend',
+      label: 'Frontend implementation',
+      items: [{
+        id: 'page',
+        label: 'Tasks page',
+        implemented,
+        candidateFiles: [join(candidate, 'frontend/src/Tasks.tsx')],
+        referenceFiles: ['/private/reference/frontend/src/Tasks.tsx'],
+      }],
+    }],
   });
 }
 
@@ -56,7 +143,12 @@ test('imports legacy artifacts idempotently and projects a frontend-compatible r
     const runDirectory = fixture(resultsRoot);
     addCandidate(runDirectory, 2, 50, true);
     addCandidate(runDirectory, 3, 50, false);
-    writeJson(join(runDirectory, 'plan.json'), { scenario: 'tasks-page', baseSha: 'base-sha', guidance: { ref: 'guidance-sha' }, matrix: [{ repetition: 1 }, { repetition: 2 }, { repetition: 3 }] });
+    writeJson(join(runDirectory, 'plan.json'), {
+      scenario: 'tasks-page',
+      baseSha: 'base-sha',
+      guidance: { ref: 'guidance-sha' },
+      matrix: [{ repetition: 1 }, { repetition: 2 }, { repetition: 3 }],
+    });
     migrate({ path: databasePath });
     const database = createDatabase(databasePath);
     try {
@@ -95,7 +187,19 @@ test('provisional runs do not expose an empty report before evaluation', async (
     const database = createDatabase(databasePath);
     try {
       const persistence = createRunPersistence(database);
-      await persistence.createRun({ id: 'run-active', repositoryName: 'demo', baseRevision: 'abc', featureType: 'frontend', description: 'Build it.', preparedPrompt: 'Prompt', promptTemplateVersion: 'v1', evaluationTemplate: 'tasks-page', provider: 'codex', agent: 'gpt-5.6-luna', reasoningLevel: 'low' });
+      await persistence.createRun({
+        id: 'run-active',
+        repositoryName: 'demo',
+        baseRevision: 'abc',
+        featureType: 'frontend',
+        description: 'Build it.',
+        preparedPrompt: 'Prompt',
+        promptTemplateVersion: 'v1',
+        evaluationTemplate: 'tasks-page',
+        provider: 'codex',
+        agent: 'gpt-5.6-luna',
+        reasoningLevel: 'low',
+      });
       await persistence.updateRunStatus('run-active', 'running');
       assert.equal((await persistence.getRun('run-active'))?.comparison, null);
     } finally { await closeDatabase(database); }
@@ -109,7 +213,17 @@ test('imports an incomplete running artifact as interrupted without a pass', asy
   try {
     const run = join(resultsRoot, 'run-stopped');
     mkdirSync(run, { recursive: true });
-    writeJson(join(run, 'web-run.json'), { id: 'run-stopped', createdAt: '2026-08-14T00:00:00.000Z', status: 'running', repo: '/tmp/demo', provider: 'codex', model: 'gpt-5.6-terra', reasoningEffort: 'low', featureType: 'backend', description: 'Build API.' });
+    writeJson(join(run, 'web-run.json'), {
+      id: 'run-stopped',
+      createdAt: '2026-08-14T00:00:00.000Z',
+      status: 'running',
+      repo: '/tmp/demo',
+      provider: 'codex',
+      model: 'gpt-5.6-terra',
+      reasoningEffort: 'low',
+      featureType: 'backend',
+      description: 'Build API.',
+    });
     migrate({ path: databasePath });
     const database = createDatabase(databasePath);
     try {

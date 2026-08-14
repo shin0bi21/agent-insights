@@ -40,19 +40,39 @@ export function buildImplementationReview(manifest, candidateFiles, referenceFil
     items: section.items.map(item => {
       const candidateMatches = [...new Set(item.patterns.flatMap(pattern => matchFiles(candidateFiles, pattern)))].sort();
       const referenceMatches = [...new Set(item.patterns.flatMap(pattern => matchFiles(referenceFiles, pattern)))].sort();
-      return { id: item.id, label: item.label, implemented: candidateMatches.length > 0, candidateFiles: candidateMatches, referenceFiles: referenceMatches };
+      return {
+        id: item.id,
+        label: item.label,
+        implemented: candidateMatches.length > 0,
+        candidateFiles: candidateMatches,
+        referenceFiles: referenceMatches,
+      };
     }),
   }));
 }
 
 export function gradeStructure(manifest, files, source, featureType = 'full-stack') {
-  return manifest.requirements.filter(requirement => !requirement.appliesTo || requirement.appliesTo.includes(featureType)).map(requirement => {
-    const fileMatches = (requirement.files ?? []).map(pattern => ({ pattern, matches: matchFiles(files, pattern) }));
-    const missingFiles = fileMatches.filter(result => result.matches.length === 0).map(result => result.pattern);
-    const missingText = (requirement.contains ?? []).filter(value => !source.toLowerCase().includes(value.toLowerCase()));
-    const passed = missingFiles.length === 0 && missingText.length === 0;
-    return { ...requirement, passed, earned: passed ? requirement.points : 0, missingFiles, missingText };
-  });
+  return manifest.requirements
+    .filter(requirement => !requirement.appliesTo || requirement.appliesTo.includes(featureType))
+    .map(requirement => {
+      const fileMatches = (requirement.files ?? []).map(pattern => ({
+        pattern,
+        matches: matchFiles(files, pattern),
+      }));
+      const missingFiles = fileMatches
+        .filter(result => result.matches.length === 0)
+        .map(result => result.pattern);
+      const missingText = (requirement.contains ?? [])
+        .filter(value => !source.toLowerCase().includes(value.toLowerCase()));
+      const passed = missingFiles.length === 0 && missingText.length === 0;
+      return {
+        ...requirement,
+        passed,
+        earned: passed ? requirement.points : 0,
+        missingFiles,
+        missingText,
+      };
+    });
 }
 
 export function grade({ worktree, scenarioPath, baseSha, featureType = 'full-stack', env = process.env }) {
@@ -73,7 +93,20 @@ export function grade({ worktree, scenarioPath, baseSha, featureType = 'full-sta
   const implementationReview = buildImplementationReview(manifest, files, filesAtRef(worktree, manifest.referenceRef), featureType);
   const earned = [...checks, ...requirements].reduce((total, item) => total + item.earned, 0);
   const possible = [...checks, ...requirements].reduce((total, item) => total + item.points, 0);
-  return { scenario: manifest.id, scenarioVersion: manifest.version, featureType, baseSha, referenceRef: manifest.referenceRef ?? null, files, checks, requirements, implementationReview, earned, possible, percentage: possible ? Math.round(earned * 1000 / possible) / 10 : 0 };
+  return {
+    scenario: manifest.id,
+    scenarioVersion: manifest.version,
+    featureType,
+    baseSha,
+    referenceRef: manifest.referenceRef ?? null,
+    files,
+    checks,
+    requirements,
+    implementationReview,
+    earned,
+    possible,
+    percentage: possible ? Math.round(earned * 1000 / possible) / 10 : 0,
+  };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

@@ -1,5 +1,16 @@
 import { execFileSync, spawn } from 'node:child_process';
-import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  readSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, resolve, sep } from 'node:path';
 import { writeJson } from './agent-benchmark-lib.js';
@@ -11,7 +22,15 @@ import { createRunPersistence } from './services/run-persistence.js';
 export const ALLOWED_EFFORTS = ['low', 'medium', 'high'];
 export const ALLOWED_FEATURE_TYPES = ['frontend', 'backend', 'full-stack'];
 export const AGENT_PROVIDERS = {
-  codex: { id: 'codex', label: 'Codex', models: [{ id: 'gpt-5.6-sol', label: 'Sol' }, { id: 'gpt-5.6-luna', label: 'Luna' }, { id: 'gpt-5.6-terra', label: 'Terra' }] },
+  codex: {
+    id: 'codex',
+    label: 'Codex',
+    models: [
+      { id: 'gpt-5.6-sol', label: 'Sol' },
+      { id: 'gpt-5.6-luna', label: 'Luna' },
+      { id: 'gpt-5.6-terra', label: 'Terra' },
+    ],
+  },
 };
 
 export function providerCatalog() {
@@ -35,7 +54,11 @@ export function validateRepository(repoPath) {
 }
 
 export function chooseRepositoryDirectory({ platform = process.platform, execute = execFileSync } = {}) {
-  if (platform !== 'darwin') throw new Error('Native folder selection is currently available on macOS. Enter the repository path manually on this platform.');
+  if (platform !== 'darwin') {
+    throw new Error(
+      'Native folder selection is currently available on macOS. Enter the repository path manually on this platform.',
+    );
+  }
   try {
     return execute('osascript', ['-e', 'POSIX path of (choose folder with prompt "Choose a Git repository")'], { encoding: 'utf8' }).trim().replace(/\/$/, '');
   } catch (error) {
@@ -72,9 +95,15 @@ export function discoverSkills(repoPath) {
 export function validateAutomationGuidance(repoPath) {
   const repo = validateRepository(repoPath);
   const agentsPath = resolve(repo, 'AGENTS.md');
-  if (!existsSync(agentsPath) || !statSync(agentsPath).isFile()) throw new Error('Repository is not automation-ready: AGENTS.md is required.');
+  if (!existsSync(agentsPath) || !statSync(agentsPath).isFile()) {
+    throw new Error('Repository is not automation-ready: AGENTS.md is required.');
+  }
   const skills = discoverSkills(repo);
-  if (!skills.length) throw new Error('Repository is not automation-ready: add at least one SKILL.md under .agents/skills or .codex/skills.');
+  if (!skills.length) {
+    throw new Error(
+      'Repository is not automation-ready: add at least one SKILL.md under .agents/skills or .codex/skills.',
+    );
+  }
   return { repo, skills };
 }
 
@@ -82,8 +111,18 @@ export function composePrompt({ scenarioPrompt, featureType = 'full-stack', desc
   const requested = String(description ?? '').trim();
   if (!requested) throw new Error('Feature description is required.');
   if (!ALLOWED_FEATURE_TYPES.includes(featureType)) throw new Error('Unsupported feature type.');
-  const scope = featureType === 'frontend' ? 'Implement frontend scope only. Assume the required backend contracts already exist.' : featureType === 'backend' ? 'Implement backend scope only. Assume the frontend consumer already exists.' : 'Implement the complete full-stack scope, including persistence, backend API, and frontend behavior.';
-  return `${scenarioPrompt.trim()}\n\n## Requested feature scope\n${scope}\n\nFollow AGENTS.md and let its workflow choose the applicable repository skill. Do not guess when repository guidance is missing.\n\n## User feature description\n${requested}\n`;
+  let scope = 'Implement the complete full-stack scope, including persistence, backend API, and frontend behavior.';
+  if (featureType === 'frontend') {
+    scope = 'Implement frontend scope only. Assume the required backend contracts already exist.';
+  } else if (featureType === 'backend') {
+    scope = 'Implement backend scope only. Assume the frontend consumer already exists.';
+  }
+  return [
+    scenarioPrompt.trim(),
+    `## Requested feature scope\n${scope}`,
+    'Follow AGENTS.md and let its workflow choose the applicable repository skill. Do not guess when repository guidance is missing.',
+    `## User feature description\n${requested}`,
+  ].join('\n\n') + '\n';
 }
 
 function compactText(value, limit = 240) {
@@ -113,11 +152,19 @@ export function parseAgentActivity(source, runStatus = 'completed') {
     try { event = JSON.parse(line); } catch { continue; }
     const item = event.item;
     if (!item?.id || !['agent_message', 'command_execution', 'file_change'].includes(item.type)) continue;
-    const status = item.type === 'agent_message' ? 'completed' : item.status === 'in_progress' ? 'running' : (item.exit_code && item.exit_code !== 0) || item.status === 'failed' ? 'failed' : 'completed';
+    let status = 'completed';
+    if (item.type !== 'agent_message') {
+      if (item.status === 'in_progress') status = 'running';
+      else if ((item.exit_code && item.exit_code !== 0) || item.status === 'failed') status = 'failed';
+    }
     let detail = '';
     if (item.type === 'agent_message') detail = compactText(item.text, 500);
     if (item.type === 'command_execution') detail = compactText(item.command);
-    if (item.type === 'file_change') detail = (item.changes ?? []).map(change => `${change.kind}: ${String(change.path).split('/').slice(-4).join('/')}`).join('\n');
+    if (item.type === 'file_change') {
+      detail = (item.changes ?? [])
+        .map(change => `${change.kind}: ${String(change.path).split('/').slice(-4).join('/')}`)
+        .join('\n');
+    }
     items.set(item.id, { id: item.id, parentId: 'agent-work', kind: item.type, label: activityLabel(item), detail, status });
   }
   const children = [...items.values()].slice(-50);
@@ -150,7 +197,11 @@ export function createRunManager({ root, spawnProcess = spawn }) {
   const database = createDatabase(databaseFile);
   const persistence = createRunPersistence(database);
   const active = new Map();
-  const ready = database.updateTable('runs').set({ status: 'interrupted', completed_at: new Date().toISOString() }).where('status', 'in', ['queued', 'preparing', 'running', 'evaluating']).execute();
+  const ready = database
+    .updateTable('runs')
+    .set({ status: 'interrupted', completed_at: new Date().toISOString() })
+    .where('status', 'in', ['queued', 'preparing', 'running', 'evaluating'])
+    .execute();
 
   async function list() {
     await ready;
@@ -207,13 +258,46 @@ export function createRunManager({ root, spawnProcess = spawn }) {
     const logPath = resolve(directory, 'runner.log');
     writeFileSync(promptPath, prompt);
     writeFileSync(logPath, '');
-    const config = { id, createdAt: new Date().toISOString(), status: 'running', repo, provider: provider.id, model: input.model, reasoningEffort: input.reasoningEffort, featureType: input.featureType, description: String(input.description).trim() };
+    const config = {
+      id,
+      createdAt: new Date().toISOString(),
+      status: 'running',
+      repo,
+      provider: provider.id,
+      model: input.model,
+      reasoningEffort: input.reasoningEffort,
+      featureType: input.featureType,
+      description: String(input.description).trim(),
+    };
     writeJson(resolve(directory, 'web-run.json'), config);
     const baseRevision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
-    await persistence.createRun({ id, repositoryName: basename(repo), baseRevision, featureType: input.featureType, description: config.description, preparedPrompt: prompt, promptTemplateVersion: 'tasks-page:v1', evaluationTemplate: 'tasks-page', provider: provider.id, agent: input.model, reasoningLevel: input.reasoningEffort, createdAt: config.createdAt });
+    await persistence.createRun({
+      id,
+      repositoryName: basename(repo),
+      baseRevision,
+      featureType: input.featureType,
+      description: config.description,
+      preparedPrompt: prompt,
+      promptTemplateVersion: 'tasks-page:v1',
+      evaluationTemplate: 'tasks-page',
+      provider: provider.id,
+      agent: input.model,
+      reasoningLevel: input.reasoningEffort,
+      createdAt: config.createdAt,
+    });
     await persistence.updateRunStatus(id, 'running');
     const invocation = benchmarkRunnerInvocation(root);
-    const args = [...invocation.args, '--repo', repo, '--scenario', 'tasks-page', '--feature-type', input.featureType, '--models', input.model, '--reasoning-efforts', input.reasoningEffort, '--repetitions', '1', '--prompt-file', promptPath, '--output-dir', directory];
+    const args = [
+      ...invocation.args,
+      '--repo', repo,
+      '--scenario', 'tasks-page',
+      '--feature-type', input.featureType,
+      '--models', input.model,
+      '--reasoning-efforts', input.reasoningEffort,
+      '--repetitions', '1',
+      '--prompt-file', promptPath,
+      '--output-dir', directory,
+    ];
     const output = writeFileSync;
     const child = spawnProcess(invocation.command, args, { cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
     active.set(id, { status: 'running', exitCode: null, child, directory, repo });

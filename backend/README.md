@@ -44,6 +44,7 @@ Express + TypeScript + Kysely/SQLite localhost service for repository discovery,
 |---|---|---|
 | `GET` | `/api/health` | Report local service and container readiness |
 | `GET` | `/api/providers` | List available provider models and options |
+| `GET` | `/api/runtime` | Report directory-picker capability and the transient mounted repository path |
 | `GET` | `/api/runs` | List persisted runs and report projections |
 | `GET` | `/api/runs/:id` | Read one run |
 | `POST` | `/api/runs` | Validate and start a run |
