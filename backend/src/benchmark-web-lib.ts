@@ -1,5 +1,5 @@
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, openSync, readFileSync, readSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, resolve, sep } from 'node:path';
 import { ensureDirectory, readJson, writeJson } from './agent-benchmark-lib.js';
 
@@ -73,6 +73,57 @@ export function composePrompt({ scenarioPrompt, featureType = 'full-stack', desc
   return `${scenarioPrompt.trim()}\n\n## Requested feature scope\n${scope}\n\nFollow AGENTS.md and let its workflow choose the applicable repository skill. Do not guess when repository guidance is missing.\n\n## User feature description\n${requested}\n`;
 }
 
+function compactText(value, limit = 240) {
+  const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+  return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
+}
+
+function activityLabel(item) {
+  if (item.type === 'agent_message') return 'Agent update';
+  if (item.type === 'file_change') {
+    const count = item.changes?.length ?? 0;
+    const action = item.status === 'in_progress' ? 'Updating' : 'Updated';
+    return `${action} ${count} ${count === 1 ? 'file' : 'files'}`;
+  }
+  const command = String(item.command ?? '');
+  if (/\b(test|vitest|jest|playwright)\b/i.test(command)) return 'Running tests';
+  if (/\b(build|tsc)\b/i.test(command)) return 'Checking the build';
+  if (/\b(rg|grep|find|sed|head|tail)\b/i.test(command)) return 'Inspecting repository patterns';
+  return item.status === 'in_progress' ? 'Running a command' : 'Command completed';
+}
+
+export function parseAgentActivity(source, runStatus = 'completed') {
+  const items = new Map();
+  for (const line of String(source ?? '').split('\n')) {
+    if (!line.trim()) continue;
+    let event;
+    try { event = JSON.parse(line); } catch { continue; }
+    const item = event.item;
+    if (!item?.id || !['agent_message', 'command_execution', 'file_change'].includes(item.type)) continue;
+    const status = item.type === 'agent_message' ? 'completed' : item.status === 'in_progress' ? 'running' : (item.exit_code && item.exit_code !== 0) || item.status === 'failed' ? 'failed' : 'completed';
+    let detail = '';
+    if (item.type === 'agent_message') detail = compactText(item.text, 500);
+    if (item.type === 'command_execution') detail = compactText(item.command);
+    if (item.type === 'file_change') detail = (item.changes ?? []).map(change => `${change.kind}: ${String(change.path).split('/').slice(-4).join('/')}`).join('\n');
+    items.set(item.id, { id: item.id, parentId: 'agent-work', kind: item.type, label: activityLabel(item), detail, status });
+  }
+  const children = [...items.values()].slice(-50);
+  if (!children.length) return [];
+  const failed = children.some(item => item.status === 'failed');
+  const status = runStatus === 'running' || children.some(item => item.status === 'running') ? 'running' : failed ? 'failed' : 'completed';
+  return [{ id: 'agent-work', parentId: null, kind: 'phase', label: 'Agent work', detail: '', status }, ...children];
+}
+
+function readFileTail(path, maximumBytes = 1_000_000) {
+  const size = statSync(path).size;
+  const length = Math.min(size, maximumBytes);
+  const buffer = Buffer.alloc(length);
+  const descriptor = openSync(path, 'r');
+  try { readSync(descriptor, buffer, 0, length, size - length); }
+  finally { closeSync(descriptor); }
+  return buffer.toString('utf8');
+}
+
 export function createRunManager({ root, spawnProcess = spawn }) {
   const runsRoot = ensureDirectory(resolve(root, 'results', 'web-runs'));
   const active = new Map();
@@ -94,18 +145,24 @@ export function createRunManager({ root, spawnProcess = spawn }) {
       .filter(entry => entry.isDirectory())
       .map(entry => resolve(directory, entry.name, 'progress.log'))
       .filter(existsSync);
+    const eventLogs = readdirSync(directory, { withFileTypes: true })
+      .filter(entry => entry.isDirectory())
+      .map(entry => resolve(directory, entry.name, 'events.jsonl'))
+      .filter(existsSync);
     const progressSections = [
       existsSync(runnerLogPath) ? `Runner\n${readFileSync(runnerLogPath, 'utf8')}` : '',
       ...candidateLogs.map(path => `Agent progress\n${readFileSync(path, 'utf8')}`),
     ].filter(Boolean);
     const live = active.get(id);
     const persistedStatus = config.status === 'running' ? 'interrupted' : (config.status ?? 'failed');
+    const status = live?.status ?? (existsSync(comparisonPath) ? 'completed' : persistedStatus);
     return {
       ...config,
-      status: live?.status ?? (existsSync(comparisonPath) ? 'completed' : persistedStatus),
+      status,
       exitCode: live?.exitCode ?? config.exitCode ?? null,
       artifactPath: directory,
       progress: progressSections.join('\n\n').slice(-40_000),
+      activity: eventLogs.flatMap(path => parseAgentActivity(readFileTail(path), status)),
       comparison: existsSync(comparisonPath) ? readJson(comparisonPath) : null,
     };
   }

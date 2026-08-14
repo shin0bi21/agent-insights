@@ -7,7 +7,7 @@ import { resolve } from 'node:path';
 import { buildImplementationReview, gradeStructure } from '../src/grade-agent-benchmark.js';
 import { parseJsonLines, spawnWithCapture, summarizeEvents } from '../src/agent-benchmark-lib.js';
 import { codexArguments, comparison, parseArguments } from '../src/run-agent-benchmark.js';
-import { chooseRepositoryDirectory, composePrompt, createRunManager, discoverSkills, providerCatalog, validateAutomationGuidance, validateRepository } from '../src/benchmark-web-lib.js';
+import { chooseRepositoryDirectory, composePrompt, createRunManager, discoverSkills, parseAgentActivity, providerCatalog, validateAutomationGuidance, validateRepository } from '../src/benchmark-web-lib.js';
 
 test('parses a bounded benchmark matrix', () => {
   assert.deepEqual(parseArguments([
@@ -216,13 +216,30 @@ test('run manager exposes its resolved local artifact path and detailed agent pr
     writeFileSync(resolve(runDirectory, 'web-run.json'), JSON.stringify({ id: 'run-example', createdAt: '2026-01-01T00:00:00.000Z', status: 'running' }));
     writeFileSync(resolve(runDirectory, 'runner.log'), 'preparing worktree');
     writeFileSync(resolve(candidateDirectory, 'progress.log'), 'reading repository guidance');
+    writeFileSync(resolve(candidateDirectory, 'events.jsonl'), `${JSON.stringify({ type: 'item.completed', item: { id: 'message-1', type: 'agent_message', text: 'Working.' } })}\n`);
     const manager = createRunManager({ root });
     const run = manager.get('run-example');
     assert.equal(run.artifactPath, runDirectory);
     assert.equal(run.status, 'interrupted');
     assert.match(run.progress, /preparing worktree/);
     assert.match(run.progress, /reading repository guidance/);
+    assert.equal(run.activity[1].detail, 'Working.');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('agent activity collapses live event updates into a meaningful tree', () => {
+  const source = [
+    { type: 'item.completed', item: { id: 'message-1', type: 'agent_message', text: 'Inspecting the existing task patterns.' } },
+    { type: 'item.started', item: { id: 'command-1', type: 'command_execution', command: "npm test", status: 'in_progress', exit_code: null } },
+    { type: 'item.completed', item: { id: 'command-1', type: 'command_execution', command: "npm test", status: 'completed', exit_code: 0 } },
+    { type: 'item.completed', item: { id: 'files-1', type: 'file_change', changes: [{ path: '/tmp/worktree/frontend/src/Tasks.tsx', kind: 'update' }], status: 'completed' } },
+  ].map(event => JSON.stringify(event)).join('\n');
+  const activity = parseAgentActivity(source, 'running');
+  assert.equal(activity[0].status, 'running');
+  assert.equal(activity.filter(item => item.id === 'command-1').length, 1);
+  assert.equal(activity.find(item => item.id === 'command-1').label, 'Running tests');
+  assert.match(activity.find(item => item.id === 'files-1').detail, /frontend\/src\/Tasks.tsx/);
+  assert.equal(activity.some(item => item.detail.includes('private reasoning')), false);
 });
