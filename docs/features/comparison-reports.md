@@ -12,8 +12,8 @@ HTML is the primary interactive view. PDF export presents the same normalized re
 
 - Evaluation data: `backend/src/grade-agent-benchmark.ts`
 - Aggregation and persistence projection: `backend/src/services/run-persistence.ts`
-- Browser report: `frontend/src/common/components/RunReportMenu/`
-- Implementation detail: `frontend/src/common/components/ImplementationReview/`
+- Browser report: `frontend/src/components/RunReportMenu/`
+- Implementation detail: `frontend/src/components/ImplementationReview/`
 
 ## Changing this feature
 

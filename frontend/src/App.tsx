@@ -1,61 +1,63 @@
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api';
+import History from './pages/History/History';
+import Home from './pages/Home/Home';
+import Settings, { type Theme } from './pages/Settings/Settings';
 import type { AgentProvider, RunRecord, StartRunInput } from './types';
-import FloatingSelect from './common/components/FloatingSelect/FloatingSelect';
-import RunRequestMenu from './common/components/RunRequestMenu/RunRequestMenu';
-import RunActivityTree from './common/components/RunActivityTree/RunActivityTree';
-import RunJobMenu from './common/components/RunJobMenu/RunJobMenu';
-import RunReportMenu from './common/components/RunReportMenu/RunReportMenu';
-import './styles.css';
 
-const emptyRun: StartRunInput = { repo: '', provider: '', model: '', reasoningEffort: 'low', featureType: 'full-stack', description: '' };
-type Theme = 'light' | 'dark';
+const emptyRun: StartRunInput = {
+  repo: '',
+  provider: '',
+  model: '',
+  reasoningEffort: 'low',
+  featureType: 'full-stack',
+  description: '',
+};
+type View = 'home' | 'history' | 'settings';
 type RepositoryTone = 'idle' | 'checking' | 'ready' | 'error';
-const retryableStatuses = new Set<RunRecord['status']>(['interrupted', 'failed', 'timed-out', 'cancelled']);
 
-export function formatDuration(milliseconds: number) {
-  const seconds = Math.max(0, Math.floor(milliseconds / 1000));
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const remainder = seconds % 60;
-  return [hours ? `${hours}h` : '', minutes || hours ? `${minutes}m` : '', `${remainder}s`].filter(Boolean).join(' ');
+interface NavigationButtonProps {
+  active: boolean;
+  children: string;
+  onClick: () => void;
 }
 
-export function summarizeBenchmarkProgress(progress: string) {
-  const worktree = progress.match(/\/[^\n:]*?-agent-benchmark-[^/\s:]+\/[^/\s:]+-run-\d+/)?.[0] ?? null;
-  const lines: string[] = [];
-  for (const rawLine of progress.split('\n')) {
-    const line = rawLine.trim();
-    if (!line || line === 'Runner' || line === 'Agent progress' || line.includes('state db discrepancy')) continue;
-    if (line.includes('apply_patch verification failed')) {
-      if (!lines.includes('Agent adjusted a patch after the target changed.')) lines.push('Agent adjusted a patch after the target changed.');
-      continue;
-    }
-    if (/^\d{4}-\d{2}-\d{2}T/.test(line)) continue;
-    lines.push(line);
-  }
-  return { worktree, summary: lines.join('\n') || 'Agent is working in the isolated benchmark worktree.' };
+const navigationButtonClass = `
+  relative cursor-pointer border-0 bg-transparent px-[18px] font-mono text-[.74rem]
+  leading-none font-semibold tracking-[.08em] text-[#6f6a7d] uppercase
+  after:absolute after:right-[18px] after:bottom-0 after:left-[18px] after:h-[3px]
+  after:rounded-t-[3px] after:bg-transparent after:content-['']
+  aria-[current=page]:text-[#1d1929] aria-[current=page]:after:bg-[#6f56d9]
+  max-[850px]:px-[11px] max-[850px]:after:right-[11px] max-[850px]:after:left-[11px]
+  dark:text-[#aaa3b7] dark:aria-[current=page]:text-[#f6f2fb]
+  dark:aria-[current=page]:after:bg-[#a58cff]
+`;
+
+function NavigationButton({ active, children, onClick }: NavigationButtonProps) {
+  return (
+    <button
+      aria-current={active ? 'page' : undefined}
+      className={navigationButtonClass}
+      onClick={onClick}
+      type="button"
+    >
+      {children}
+    </button>
+  );
 }
 
-function repositoryName(repo: string) { return repo.replace(/[\\/]+$/, '').split(/[\\/]/).at(-1) ?? ''; }
-
-function RunCard({ run, now, retryDisabled, onRetry }: { run: RunRecord; now: number; retryDisabled: boolean; onRetry: (run: RunRecord) => void }) {
-  const result = run.comparison?.comparison[0];
-  const duration = run.status === 'running' ? now - new Date(run.createdAt).getTime() : null;
-  const requestType = run.featureType === 'frontend' ? 'Frontend request' : run.featureType === 'backend' ? 'Backend request' : 'Full-stack request';
-  const activity = summarizeBenchmarkProgress(run.progress ?? '');
-  return <article className="run">
-    <div className="run-top"><div className="run-summary"><span className="run-label">Request type</span><strong className="run-request-type">{requestType}</strong><div className="run-actions"><RunRequestMenu description={run.description}/>{run.status !== 'completed' && <RunJobMenu run={run} worktree={activity.worktree}/>} {result && <RunReportMenu result={result} run={run}/>} {retryableStatuses.has(run.status) && <button className="request-menu-trigger" type="button" disabled={retryDisabled} onClick={() => onRetry(run)}>Retry Run</button>}</div></div><div className="run-state"><span className={`badge ${run.status}`}>{run.status}</span>{duration !== null && <small>{formatDuration(duration)}</small>}</div></div>
-    {run.status === 'running' && (run.activity?.length ? <div className="live-activity"><div className="live-activity-heading"><strong>Live activity</strong><span>Updating</span></div><RunActivityTree nodes={run.activity}/></div> : run.progress && <div className="live-activity"><div className="live-activity-heading"><strong>Live activity</strong></div><p className="activity-fallback">{activity.summary}</p></div>)}
-    {run.status === 'running' && run.progress && <details className="progress"><summary>Raw diagnostic log</summary><pre className="log">{run.progress}</pre></details>}
-  </article>;
+function repositoryName(repo: string) {
+  return repo.replace(/[\\/]+$/, '').split(/[\\/]/).at(-1) ?? '';
 }
 
 export default function App() {
-  const [view, setView] = useState<'home' | 'history' | 'settings'>('home');
-  const [theme, setTheme] = useState<Theme>(() => localStorage.getItem('repo-score-theme') === 'dark' ? 'dark' : 'light');
+  const [view, setView] = useState<View>('home');
+  const [theme, setTheme] = useState<Theme>(() =>
+    localStorage.getItem('repo-score-theme') === 'dark' ? 'dark' : 'light',
+  );
   const [input, setInput] = useState(emptyRun);
   const [providers, setProviders] = useState<AgentProvider[]>([]);
+  const [directoryPickerAvailable, setDirectoryPickerAvailable] = useState(false);
   const [runs, setRuns] = useState<RunRecord[]>([]);
   const [message, setMessage] = useState('');
   const [repositoryMessage, setRepositoryMessage] = useState('');
@@ -63,12 +65,7 @@ export default function App() {
   const [connectedRepo, setConnectedRepo] = useState('');
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(Date.now());
-  const [setupHeight, setSetupHeight] = useState<number | null>(null);
-  const setupRef = useRef<HTMLElement>(null);
   const runLoadRevision = useRef(0);
-  const provider = useMemo(() => providers.find(item => item.id === input.provider), [providers, input.provider]);
-  const currentRun = runs[0];
-  const historyRuns = runs;
   const runInProgress = runs.some(run => run.status === 'running');
 
   useEffect(() => {
@@ -80,42 +77,51 @@ export default function App() {
     const revision = ++runLoadRevision.current;
     try {
       const next = await api.runs();
-      if (revision === runLoadRevision.current) setRuns(next);
-    } catch (error) { if (revision === runLoadRevision.current) setMessage((error as Error).message); }
+      if (revision === runLoadRevision.current) {
+        setRuns(next);
+      }
+    } catch (error) {
+      if (revision === runLoadRevision.current) {
+        setMessage((error as Error).message);
+      }
+    }
   }, []);
 
   useEffect(() => {
     const revision = ++runLoadRevision.current;
-    void Promise.all([api.providers(), api.runs()]).then(([catalog, history]) => {
-      const firstProvider = catalog[0];
-      setProviders(catalog);
-      if (revision === runLoadRevision.current) setRuns(history);
-      setInput(current => ({ ...current, provider: firstProvider?.id ?? '', model: firstProvider?.models[0]?.id ?? '' }));
-    }).catch(error => setMessage((error as Error).message));
+    void Promise.all([
+      api.providers(),
+      api.runs(),
+      api.runtime().catch(() => ({ directoryPickerAvailable: false, repositoryPath: null })),
+    ])
+      .then(([catalog, history, runtime]) => {
+        const firstProvider = catalog[0];
+        setProviders(catalog);
+        setDirectoryPickerAvailable(runtime.directoryPickerAvailable);
+        if (revision === runLoadRevision.current) {
+          setRuns(history);
+        }
+        setInput(current => ({
+          ...current,
+          repo: current.repo || runtime.repositoryPath || '',
+          provider: firstProvider?.id ?? '',
+          model: firstProvider?.models[0]?.id ?? '',
+        }));
+      })
+      .catch(error => setMessage((error as Error).message));
   }, []);
 
   useEffect(() => {
-    if (!runs.some(run => run.status === 'running')) return;
+    if (!runInProgress) return;
     const timer = window.setTimeout(() => void loadRuns(), 3000);
     return () => window.clearTimeout(timer);
-  }, [runs, loadRuns]);
+  }, [runs, runInProgress, loadRuns]);
 
   useEffect(() => {
-    if (!runs.some(run => run.status === 'running')) return;
+    if (!runInProgress) return;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [runs]);
-
-  useEffect(() => {
-    const setup = setupRef.current;
-    if (!setup) return;
-    const update = () => setSetupHeight(setup.getBoundingClientRect().height);
-    update();
-    if (typeof ResizeObserver === 'undefined') { window.addEventListener('resize', update); return () => window.removeEventListener('resize', update); }
-    const observer = new ResizeObserver(update);
-    observer.observe(setup);
-    return () => observer.disconnect();
-  }, []);
+  }, [runInProgress]);
 
   async function connect(repo = input.repo) {
     setRepositoryMessage('Connecting…');
@@ -124,63 +130,154 @@ export default function App() {
       const result = await api.connectRepository(repo);
       setInput(current => ({ ...current, repo: result.repo }));
       setConnectedRepo(result.repo);
-      setRepositoryMessage(`Repository ready. AGENTS.md and ${result.skills.length} skill${result.skills.length === 1 ? '' : 's'} discovered.`);
+      setRepositoryMessage(
+        `Repository ready. AGENTS.md and ${result.skills.length} skill${result.skills.length === 1 ? '' : 's'} discovered.`,
+      );
       setRepositoryTone('ready');
-    } catch (error) { setConnectedRepo(''); setRepositoryMessage((error as Error).message); setRepositoryTone('error'); }
+    } catch (error) {
+      setConnectedRepo('');
+      setRepositoryMessage((error as Error).message);
+      setRepositoryTone('error');
+    }
   }
 
   async function browse() {
-    setBusy(true); setRepositoryMessage('Opening folder picker…'); setRepositoryTone('checking');
-    try { const result = await api.pickDirectory(); await connect(result.repo); }
-    catch (error) { setRepositoryMessage((error as Error).message); setRepositoryTone('error'); }
-    finally { setBusy(false); }
+    setBusy(true);
+    setRepositoryMessage('Opening folder picker…');
+    setRepositoryTone('checking');
+    try {
+      const result = await api.pickDirectory();
+      await connect(result.repo);
+    } catch (error) {
+      setRepositoryMessage((error as Error).message);
+      setRepositoryTone('error');
+    } finally {
+      setBusy(false);
+    }
   }
 
-  async function submit(event: FormEvent) {
-    event.preventDefault(); setBusy(true); setMessage('');
+  async function submit() {
+    setBusy(true);
+    setMessage('');
     try {
       const run = await api.startRun(input);
       runLoadRevision.current += 1;
       setRuns(current => [run, ...current.filter(item => item.id !== run.id)]);
+    } catch (error) {
+      setMessage((error as Error).message);
+    } finally {
+      setBusy(false);
     }
-    catch (error) { setMessage((error as Error).message); }
-    finally { setBusy(false); }
   }
 
   async function retry(run: RunRecord) {
-    if (runInProgress || busy) return;
-    const reconnectedRepo = connectedRepo && repositoryName(connectedRepo) === run.repositoryName ? connectedRepo : '';
+    if (runInProgress || busy) {
+      return;
+    }
+    const reconnectedRepo = connectedRepo
+      && repositoryName(connectedRepo) === run.repositoryName
+      ? connectedRepo
+      : '';
     const repo = run.repo || reconnectedRepo;
-    if (!repo) { setMessage(`Reconnect ${run.repositoryName ?? 'the original repository'} before retrying this run.`); return; }
-    const retryInput: StartRunInput = { repo, provider: run.provider ?? 'codex', model: run.model, reasoningEffort: run.reasoningEffort, featureType: run.featureType ?? 'full-stack', description: run.description };
-    setBusy(true); setMessage('');
+    if (!repo) {
+      setMessage(`Reconnect ${run.repositoryName ?? 'the original repository'} before retrying this run.`);
+      return;
+    }
+    const retryInput: StartRunInput = {
+      repo,
+      provider: run.provider ?? 'codex',
+      model: run.model,
+      reasoningEffort: run.reasoningEffort,
+      featureType: run.featureType ?? 'full-stack',
+      description: run.description,
+    };
+    setBusy(true);
+    setMessage('');
     try {
       const attempt = await api.startRun(retryInput);
       runLoadRevision.current += 1;
       setInput(retryInput);
       setRuns(current => [attempt, ...current.filter(item => item.id !== attempt.id)]);
       setView('home');
-    } catch (error) { setMessage((error as Error).message); }
-    finally { setBusy(false); }
+    } catch (error) {
+      setMessage((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
   }
 
-  return <>
-    <a className="skip-link" href="#main">Skip to main content</a>
-    <header className="site-header"><nav className="site-nav" aria-label="Primary navigation"><button aria-current={view === 'home' ? 'page' : undefined} onClick={() => setView('home')} type="button">Home</button><button aria-current={view === 'history' ? 'page' : undefined} onClick={() => setView('history')} type="button">History</button><button aria-current={view === 'settings' ? 'page' : undefined} onClick={() => setView('settings')} type="button">Settings</button></nav></header>
-    <main id="main">
-      {view === 'home' ? <><section className="hero" aria-labelledby="hero-title"><div><h1 className="product-name">Repo Automation Score</h1><h2 id="hero-title">Is your repo ready for automated workflows?</h2><p>Connect a guided Git repository, choose the feature scope, and gather real execution evidence from your chosen agent platform.</p></div></section>
-      <div className="layout" style={setupHeight ? { '--setup-height': `${setupHeight}px` } as CSSProperties : undefined}>
-        <section ref={setupRef} className="configure-panel" aria-label="Configure agent run">
-          <form onSubmit={submit}>
-            <fieldset className={`repository-step ${repositoryTone}`}><legend><span aria-hidden="true">1</span>Repository</legend><div className="step-content">{repositoryMessage && <p className="repository-status" role="status" aria-live="polite">{repositoryMessage}</p>}<label className="sr-only" htmlFor="repo">Local repository path</label><div className="input-action"><input id="repo" value={input.repo} onChange={event => { setInput({ ...input, repo: event.target.value }); setConnectedRepo(''); setRepositoryMessage(''); setRepositoryTone('idle'); }} required placeholder="Local repository path"/><button type="button" disabled={busy} onClick={() => void browse()}>Browse…</button><button type="button" disabled={busy} onClick={() => void connect()}>Connect</button></div></div></fieldset>
-            <fieldset><legend><span aria-hidden="true">2</span>Feature type</legend><div className="step-content"><label className="sr-only" htmlFor="feature-type">What kind of feature is this?</label><FloatingSelect id="feature-type" value={input.featureType} options={[{ value: 'full-stack', label: 'Full stack' }, { value: 'frontend', label: 'Frontend' }, { value: 'backend', label: 'Backend' }]} onChange={value => setInput({ ...input, featureType: value as StartRunInput['featureType'] })}/><p className="help">AGENTS.md chooses the repository workflow.</p></div></fieldset>
-            <fieldset><legend><span aria-hidden="true">3</span>Agent</legend><div className="step-content three-columns"><div className="field"><label htmlFor="provider">Platform</label><FloatingSelect id="provider" value={input.provider} options={providers.map(item => ({ value: item.id, label: item.label }))} onChange={value => { const next = providers.find(item => item.id === value); setInput({ ...input, provider: value, model: next?.models[0]?.id ?? '' }); }}/></div><div className="field"><label htmlFor="model">Model</label><FloatingSelect id="model" value={input.model} options={provider?.models.map(item => ({ value: item.id, label: item.label })) ?? []} onChange={value => setInput({ ...input, model: value })}/></div><div className="field"><label htmlFor="reasoning">Reasoning</label><FloatingSelect id="reasoning" value={input.reasoningEffort} options={[{ value: 'low', label: 'Low' }, { value: 'medium', label: 'Medium' }, { value: 'high', label: 'High' }]} onChange={value => setInput({ ...input, reasoningEffort: value })}/></div></div></fieldset>
-            <fieldset><legend><span aria-hidden="true">4</span>Feature request</legend><div className="step-content"><label className="sr-only" htmlFor="description">What should the agent build?</label><textarea id="description" value={input.description} onChange={event => setInput({ ...input, description: event.target.value })} required rows={3} placeholder="What should the agent build?"/></div></fieldset>
-            <div className="form-status" role="status" aria-live="polite">{message}</div><button className="primary" disabled={busy || runInProgress} type="submit">{busy ? <><span className="spinner" aria-hidden="true"/>Starting run…</> : runInProgress ? <><span className="spinner" aria-hidden="true"/>Run in progress</> : <>Start agent run <span aria-hidden="true">→</span></>}</button>
-          </form>
-        </section>
-        <section className="panel runs-panel" aria-labelledby="current-run-title"><div className="panel-heading"><div><span>LATEST</span><h2 id="current-run-title">Current run</h2></div><button className="quiet" onClick={() => void loadRuns()} type="button">Refresh</button></div><div className="runs" aria-live="polite">{currentRun ? <RunCard run={currentRun} now={now} retryDisabled={busy || runInProgress} onRetry={run => void retry(run)}/> : <p className="empty">No runs yet.</p>}</div></section>
-      </div></> : view === 'history' ? <section className="history-view" aria-labelledby="history-title"><div className="page-heading"><div><p className="kicker">RUN ARCHIVE</p><h2 id="history-title">Run history</h2><p>Review every run, including the latest and any interrupted attempts.</p></div><button className="quiet" onClick={() => void loadRuns()} type="button">Refresh history</button></div><section className="panel"><div className="runs history-runs" aria-live="polite">{historyRuns.length ? historyRuns.map(run => <RunCard key={run.id} run={run} now={now} retryDisabled={busy || runInProgress} onRetry={item => void retry(item)}/>) : <p className="empty">No runs yet.</p>}</div></section></section> : <section className="settings-view" aria-labelledby="settings-title"><div className="page-heading"><div><p className="kicker">PREFERENCES</p><h2 id="settings-title">Settings</h2><p>Choose how Repo Automation Score looks on this machine.</p></div></div><section className="panel settings-panel"><h3>Appearance</h3><div className="theme-options" role="radiogroup" aria-label="Color theme">{(['light', 'dark'] as Theme[]).map(option => <button key={option} className="theme-option" role="radio" aria-checked={theme === option} onClick={() => setTheme(option)} type="button"><span className={`theme-preview ${option}`} aria-hidden="true"><i/><i/><i/></span><strong>{option === 'light' ? 'Light' : 'Dark'}</strong><small>{option === 'light' ? 'White with purple accents' : 'Deep charcoal with purple accents'}</small></button>)}</div></section></section>}
-    </main>
-  </>;
+  return (
+    <div className="min-h-screen overscroll-y-none bg-[#f7f6fb] font-sans text-[#1d1929] [color-scheme:light] dark:bg-[#121116] dark:text-[#f6f2fb] dark:[color-scheme:dark]">
+      <a
+        className="absolute top-4 -left-[999px] z-20 bg-[#6f56d9] p-3 text-white focus:left-4 dark:bg-[#a58cff]"
+        href="#main"
+      >
+        Skip to main content
+      </a>
+      <header className="sticky top-0 z-10 flex min-h-[68px] justify-start border-b border-[#dedbea] bg-white/94 px-[max(24px,5vw)] backdrop-blur-[14px] max-[850px]:px-[4vw] dark:border-[#373241] dark:bg-[#1b1921]/94">
+        <nav className="flex self-stretch" aria-label="Primary navigation">
+          <NavigationButton
+            active={view === 'home'}
+            onClick={() => setView('home')}
+          >
+            Home
+          </NavigationButton>
+          <NavigationButton
+            active={view === 'history'}
+            onClick={() => setView('history')}
+          >
+            History
+          </NavigationButton>
+          <NavigationButton
+            active={view === 'settings'}
+            onClick={() => setView('settings')}
+          >
+            Settings
+          </NavigationButton>
+        </nav>
+      </header>
+      <main
+        id="main"
+        className="mx-auto w-[min(1400px,90vw)] py-16 max-[850px]:w-[min(92vw,680px)] max-[850px]:pt-10"
+      >
+        {view === 'home' && (
+          <Home
+            input={input}
+            providers={providers}
+            directoryPickerAvailable={directoryPickerAvailable}
+            currentRun={runs[0]}
+            now={now}
+            busy={busy}
+            runInProgress={runInProgress}
+            message={message}
+            repositoryMessage={repositoryMessage}
+            repositoryTone={repositoryTone}
+            onInputChange={setInput}
+            onRepositoryEdit={() => {
+              setConnectedRepo('');
+              setRepositoryMessage('');
+              setRepositoryTone('idle');
+            }}
+            onBrowse={() => void browse()}
+            onConnect={() => void connect()}
+            onSubmit={() => void submit()}
+            onRefresh={() => void loadRuns()}
+            onRetry={run => void retry(run)}
+          />
+        )}
+        {view === 'history' && (
+          <History
+            runs={runs}
+            now={now}
+            retryDisabled={busy || runInProgress}
+            onRefresh={() => void loadRuns()}
+            onRetry={run => void retry(run)}
+          />
+        )}
+        {view === 'settings' && (
+          <Settings theme={theme} onThemeChange={setTheme} />
+        )}
+      </main>
+    </div>
+  );
 }

@@ -10,6 +10,8 @@ Use this guide for floating selectors, anchored menus, centered dialogs, focus, 
 - Bound panel height and scroll inside the panel rather than growing the page.
 - Keep trigger `aria-expanded`, dialog/menu semantics, labels, and Escape dismissal correct.
 - Center report dialogs in the viewport, lock background body scrolling, and keep report overflow internal.
+- Express overlay placement, bounds, backdrop, focus visibility, and responsive behavior with
+  Tailwind utilities on the elements that own those interactions.
 
 ## Responsive behavior
 

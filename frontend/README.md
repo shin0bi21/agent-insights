@@ -20,22 +20,28 @@ React + TypeScript + Vite browser interface for repository setup, run progress, 
 |---|---|
 | UI | React 19 |
 | Language | TypeScript 5.9 |
-| Build and development | Vite 7 |
+| Build and development | Vite 7 with the official Tailwind CSS plugin |
+| Styling | Tailwind CSS 4 utilities |
 | Tests | Vitest, Testing Library, jsdom |
 
 ## Ownership
 
 ```text
-App workflow → typed API adapter → localhost API
-      │
-      └── common interaction and report components
+App orchestration → page → product components → common primitives
+        │
+        └── typed API adapter → localhost API
 ```
 
-- `src/App.tsx` owns top-level Home, History, and Settings composition.
+- `src/App.tsx` owns view selection and cross-page run orchestration.
+- `src/pages/` owns Home, History, Settings, and their page-specific components.
+- `src/components/` owns run-specific product components reused across pages.
 - `src/api.ts` owns every localhost HTTP request.
 - `src/types.ts` owns normalized browser-facing contracts.
-- `src/common/components/` owns reusable menus, selectors, activity, and report presentation.
-- `src/styles.css` currently owns application-wide layout and theme styles.
+- `src/common/components/` owns reusable product-agnostic interaction primitives.
+- Production components use Tailwind utilities for layout, appearance, responsive states,
+  focus treatment, and the `data-theme="dark"` appearance variant.
+- `src/styles.css` is the minimal Tailwind entry point. Do not add component stylesheets or
+  authored selectors; put utilities on the element that owns the presentation.
 
 The browser never accesses repositories, credentials, Git, subprocesses, or SQLite directly. It polls normalized run state from the API and keeps only transient interaction state locally.
 

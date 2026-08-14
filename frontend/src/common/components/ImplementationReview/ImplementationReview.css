@@ -1,8 +1,0 @@
-.implementation-review{border-top:1px solid var(--line);margin-top:20px;padding-top:20px}
-.implementation-review>h3{font-size:1rem;margin:0 0 18px}
-.review-section+.review-section{margin-top:22px}.review-section h4{color:var(--muted);font:.65rem/1.2 ui-monospace,monospace;letter-spacing:.12em;margin:0 0 8px;text-transform:uppercase}
-.review-item{border-top:1px solid var(--line)}.review-item summary{align-items:center;cursor:pointer;display:flex;gap:16px;justify-content:space-between;padding:11px 0}
-.review-item summary span{font-size:.82rem}.review-item summary strong{color:var(--danger);font:.62rem/1.2 ui-monospace,monospace;text-transform:uppercase}.review-item.implemented summary strong{color:var(--accent)}
-.review-evidence{display:grid;gap:14px;grid-template-columns:1fr 1fr;padding:2px 0 14px}.review-evidence h5{color:var(--muted);font:.58rem/1.2 ui-monospace,monospace;letter-spacing:.08em;margin:0 0 7px;text-transform:uppercase}
-.review-evidence p,.review-evidence ul{color:var(--muted);font:.62rem/1.45 ui-monospace,monospace;margin:0;padding:0}.review-evidence ul{list-style:none}.review-evidence li{overflow-wrap:anywhere}.review-evidence li+li{margin-top:4px}
-@media(max-width:600px){.review-evidence{grid-template-columns:1fr}}

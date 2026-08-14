@@ -14,7 +14,8 @@
     "web": "npm run web:build && tsx backend/src/benchmark-web-server.ts",
     "web:dev": "tsx backend/src/benchmark-web-dev.ts",
     "web:build": "vite build",
-    "web:check": "tsc --noEmit",
+    "tooling:check": "tsc -p tsconfig.json",
+    "web:check": "tsc -p frontend/tsconfig.json",
     "backend:check": "tsc -p backend/tsconfig.json --noEmit",
     "backend:build": "tsc -p backend/tsconfig.json",
     "db:migrate": "tsx backend/db/scripts/migrate.ts",
@@ -36,6 +37,7 @@
     "vite": "7.3.6"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "@testing-library/dom": "10.4.1",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.2",
@@ -46,6 +48,7 @@
     "@types/react-dom": "19.2.4",
     "jsdom": "26.1.0",
     "kysely-codegen": "^0.20.0",
+    "tailwindcss": "^4.3.3",
     "tsx": "4.20.5",
     "typescript": "5.9.2",
     "vitest": "3.2.7"

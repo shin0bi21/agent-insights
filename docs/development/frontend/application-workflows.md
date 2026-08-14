@@ -1,6 +1,6 @@
 # Frontend application workflows
 
-`frontend/src/App.tsx` currently owns the Home, History, and Settings views plus repository setup and current-run orchestration. Keep it readable as composition; extract a page, hook, or feature only when that unit has a coherent state or interaction contract.
+`frontend/src/App.tsx` owns cross-page state, run orchestration, and view selection. `frontend/src/pages/Home`, `History`, and `Settings` own page composition. Home-only setup and current-run sections live under `pages/Home/components`; run presentation shared by Home and History lives under `src/components`.
 
 ## State ownership
 
@@ -11,6 +11,10 @@
 - Historical retries require a newly connected repository when no transient path exists.
 
 Use `src/api.ts` for every request and `src/types.ts` for normalized API contracts. Keep raw provider fields out of components.
+
+Use Tailwind utilities directly in production components. Shared recurring treatments may live
+as complete utility strings in `src/ui.ts`; component-specific layout remains beside the owning
+markup. Do not introduce component CSS files or semantic styling selectors.
 
 ## Run presentation
 
