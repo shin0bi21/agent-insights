@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import test from 'node:test';
 import { createBenchmarkApp } from '../src/http/app.js';
+import { resolveServerHost } from '../src/http/server-config.js';
 
 async function withApp(app, run) {
   const server = createServer(app);
@@ -24,6 +25,10 @@ test('Express API preserves run routes with an injected manager', async () => {
   };
   const app = createBenchmarkApp({ root: process.cwd(), manager, providers: () => [{ id: 'codex' }] });
   await withApp(app, async origin => {
+    const health = await fetch(`${origin}/api/health`);
+    assert.equal(health.status, 200);
+    assert.deepEqual(await health.json(), { status: 'ok' });
+
     const runs = await fetch(`${origin}/api/runs`);
     assert.equal(runs.status, 200);
     assert.deepEqual(await runs.json(), [{ id: 'run-1' }]);
@@ -36,6 +41,12 @@ test('Express API preserves run routes with an injected manager', async () => {
     assert.equal(started.status, 202);
     assert.deepEqual(calls, [{ model: 'gpt-5.6-luna' }]);
   });
+});
+
+test('server binding stays loopback by default and requires an explicit container host', () => {
+  assert.equal(resolveServerHost({}), '127.0.0.1');
+  assert.equal(resolveServerHost({ REPO_AUTOMATION_SCORE_HOST: '0.0.0.0' }), '0.0.0.0');
+  assert.throws(() => resolveServerHost({ REPO_AUTOMATION_SCORE_HOST: 'example.com' }), /loopback or all-interface/);
 });
 
 test('Express API returns JSON for validation, parse, and not-found failures', async () => {

@@ -13,6 +13,8 @@ Use the narrowest authoritative test while developing and the complete affected 
 | Repository skills | `npm run validate:skills` |
 | Local documentation links | `npm run validate:docs` |
 | Migration state | `npm run db:status` |
+| Compose interpolation and overrides | `npm run docker:config` |
+| Production container image | `npm run docker:build` |
 | Whitespace and patch integrity | `git diff --check` |
 
 Backend tests use Node's test runner across `backend/test/*.test.ts`. Frontend tests use Vitest and jsdom. Use a real browser smoke check when behavior depends on geometry, scroll placement, focus containment, pointer input, or responsive layout.

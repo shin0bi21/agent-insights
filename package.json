@@ -21,6 +21,8 @@
     "db:status": "tsx backend/db/scripts/migration-status.ts",
     "db:import-results": "tsx backend/db/scripts/import-results.ts",
     "db:types": "kysely-codegen --dialect sqlite --out-file backend/src/db/generated.ts",
+    "docker:config": "tsx scripts/validate-docker-compose.ts",
+    "docker:build": "docker build --tag repo-automation-score:check .",
     "validate:skills": "tsx scripts/validate-skills.ts",
     "validate:docs": "tsx scripts/validate-doc-links.ts"
   },

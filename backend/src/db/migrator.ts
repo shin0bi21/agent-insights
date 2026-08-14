@@ -6,6 +6,7 @@ import { databasePath, ensureDatabaseDirectory } from './config.js';
 
 export const migrationsDirectory = resolve(import.meta.dirname, '../../db/migrations');
 export interface Migration { version: string; path: string; sql: string; checksum: string }
+export interface MigrationStatus { version: string; state: 'applied' | 'pending' | 'checksum-mismatch' | 'missing' }
 
 export function checksum(source: string) { return createHash('sha256').update(source).digest('hex'); }
 
@@ -40,4 +41,21 @@ export function migrate({ path = databasePath(), directory = migrationsDirectory
     for (const migration of pending) apply(migration);
     return { applied: pending.map(migration => migration.version), pending: [] as string[] };
   } finally { database.close(); }
+}
+
+export function migrationStatus({ path = databasePath(), directory = migrationsDirectory } = {}): MigrationStatus[] {
+  const migrations = discoverMigrations(directory);
+  if (!existsSync(path)) return migrations.map(migration => ({ version: migration.version, state: 'pending' }));
+  const database = new DatabaseDriver(ensureDatabaseDirectory(path), { readonly: true });
+  try {
+    const migrationsTable = database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'").get();
+    if (!migrationsTable) return migrations.map(migration => ({ version: migration.version, state: 'pending' }));
+    const applied = new Map((database.prepare('SELECT version, checksum FROM schema_migrations').all() as Array<{ version: string; checksum: string }>).map(row => [row.version, row.checksum]));
+    const available = new Set(migrations.map(migration => migration.version));
+    const known = migrations.map(migration => ({ version: migration.version, state: !applied.has(migration.version) ? 'pending' as const : applied.get(migration.version) === migration.checksum ? 'applied' as const : 'checksum-mismatch' as const }));
+    const missing = [...applied.keys()].filter(version => !available.has(version)).map(version => ({ version, state: 'missing' as const }));
+    return [...known, ...missing];
+  } finally {
+    database.close();
+  }
 }

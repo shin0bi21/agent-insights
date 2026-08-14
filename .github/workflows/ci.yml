@@ -36,3 +36,5 @@ jobs:
       - run: npm run test:web
       - run: npm run backend:build
       - run: npm run web:build
+      - run: npm run docker:config
+      - run: npm run docker:build

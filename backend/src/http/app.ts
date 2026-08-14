@@ -39,6 +39,10 @@ export function createBenchmarkApp(options: CreateBenchmarkAppOptions): Express 
   app.disable('x-powered-by');
   app.use(express.json({ limit: '100kb' }));
 
+  app.get('/api/health', (_request, response) => {
+    response.set('cache-control', 'no-store').json({ status: 'ok' });
+  });
+
   app.get('/api/runs', async (_request, response) => {
     response.set('cache-control', 'no-store').json(await manager.list());
   });
