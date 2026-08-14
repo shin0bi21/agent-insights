@@ -1,6 +1,6 @@
 {
   "id": "tasks-page",
-  "version": 6,
+  "version": 7,
   "title": "Build Staff Tasks with table and calendar views",
   "baseRef": "70221361e41a6956abd714130d01c6a7689a1fb9",
   "referenceRef": "e66853e2f89520f707057d47f7f938b1d563c596",
@@ -21,6 +21,9 @@
   "reasoningEfforts": ["low", "medium", "high"],
   "timeoutMinutes": 90,
   "evaluationTimeoutMinutes": 30,
+  "isolation": {
+    "dockerComposeServices": ["frontend", "nginx", "backend", "db", "db_test"]
+  },
   "repetitions": 3,
   "models": ["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"],
   "checks": [

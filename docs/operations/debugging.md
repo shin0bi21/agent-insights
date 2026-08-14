@@ -35,6 +35,6 @@ curl --fail http://127.0.0.1:4173/api/health
 
 - If Compose rejects interpolation, copy `.env.example` to `.env` and replace both absolute path placeholders.
 - If repository validation fails, confirm the UI path exactly matches `RAS_REPOSITORY_PATH` and inspect the bind mount from inside the app container.
-- If the app is healthy but a target-owned Compose command fails, confirm the runner override is active, `/var/run/docker.sock` is mounted, and `RAS_RUNTIME_PATH` is shared with Docker Desktop or the host daemon.
+- If the app is healthy but a target-owned Compose command fails, confirm `RAS_DOCKER_SOCKET_PATH=/var/run/docker.sock`, the socket is mounted, and `RAS_RUNTIME_PATH` is shared with Docker Desktop or the host daemon.
 - If provider authentication is missing, rerun `docker compose run --rm app codex`; do not copy credentials into the image or `.env`.
 - If port `4173` is occupied, change `RAS_PORT` in `.env` and recreate the service. The published address must remain on `127.0.0.1`.

@@ -8,12 +8,28 @@ import test from 'node:test';
 import { resolve } from 'node:path';
 import { buildImplementationReview, gradeStructure } from '../src/grade-agent-benchmark.js';
 import { parseJsonLines, spawnWithCapture, summarizeEvents } from '../src/agent-benchmark-lib.js';
-import { codexArguments, comparison, parseArguments } from '../src/run-agent-benchmark.js';
-import { benchmarkRunnerInvocation, chooseRepositoryDirectory, composePrompt, createRunManager, discoverSkills, parseAgentActivity, providerCatalog, validateAutomationGuidance, validateRepository, validateRunTemporaryRoot } from '../src/benchmark-web-lib.js';
+import { codexArguments, comparison, dockerComposeIsolationOverride, parseArguments } from '../src/run-agent-benchmark.js';
+import {
+  benchmarkRunnerInvocation,
+  chooseRepositoryDirectory,
+  composePrompt,
+  createRunManager,
+  discoverSkills,
+  parseAgentActivity,
+  providerCatalog,
+  validateAutomationGuidance,
+  validateRepository,
+  validateRunTemporaryRoot,
+} from '../src/benchmark-web-lib.js';
 
 test('parses a bounded benchmark matrix', () => {
   assert.deepEqual(parseArguments([
-    '--repo', '/tmp/app', '--scenario', 'tasks-page', '--models', 'sol,terra', '--reasoning-efforts', 'low,high', '--repetitions', '3', '--dry-run',
+    '--repo', '/tmp/app',
+    '--scenario', 'tasks-page',
+    '--models', 'sol,terra',
+    '--reasoning-efforts', 'low,high',
+    '--repetitions', '3',
+    '--dry-run',
   ]), {
     keepWorktrees: false,
     skipEvaluation: false,
@@ -28,7 +44,10 @@ test('parses a bounded benchmark matrix', () => {
   });
   assert.throws(() => parseArguments(['--repo', '/tmp/app', '--scenario', 'x', '--repetitions', '0']), /positive integer/);
   assert.equal(parseArguments(['--repo', '/tmp/app', '--scenario', 'x', '--feature-type', 'backend']).featureType, 'backend');
-  assert.throws(() => parseArguments(['--repo', '/tmp/app', '--scenario', 'x', '--feature-type', 'mobile']), /frontend, backend, or full-stack/);
+  assert.throws(
+    () => parseArguments(['--repo', '/tmp/app', '--scenario', 'x', '--feature-type', 'mobile']),
+    /frontend, backend, or full-stack/,
+  );
 });
 
 test('accepts a prepared prompt file for web-launched runs', () => {
@@ -47,6 +66,21 @@ test('uses compiled benchmark code in the production container', () => {
   });
 });
 
+test('generates scenario-owned Docker Compose isolation deterministically', () => {
+  assert.equal(dockerComposeIsolationOverride(['frontend', 'db_test']), [
+    'services:',
+    '  frontend:',
+    '    container_name: ${BENCHMARK_RUN_ID}_frontend',
+    '    ports: !reset []',
+    '  db_test:',
+    '    container_name: ${BENCHMARK_RUN_ID}_db_test',
+    '    ports: !reset []',
+    '',
+  ].join('\n'));
+  assert.throws(() => dockerComposeIsolationOverride([]), /at least one/);
+  assert.throws(() => dockerComposeIsolationOverride(['db\nmalicious: true']), /Unsafe/);
+});
+
 test('parses JSONL and totals usage without losing the final message', () => {
   const parsed = parseJsonLines([
     JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: 'done' } }),
@@ -62,7 +96,15 @@ test('parses JSONL and totals usage without losing the final message', () => {
 });
 
 test('structural grading requires every file pattern and marker', () => {
-  const manifest = { requirements: [{ id: 'layers', label: 'Layers', points: 10, files: ['backend/*availability*.ts', 'frontend/**/*.tsx'], contains: ['PageBody'] }] };
+  const manifest = {
+    requirements: [{
+      id: 'layers',
+      label: 'Layers',
+      points: 10,
+      files: ['backend/*availability*.ts', 'frontend/**/*.tsx'],
+      contains: ['PageBody'],
+    }],
+  };
   const passed = gradeStructure(manifest, ['backend/availability.ts', 'frontend/Page.tsx'], 'PageBody');
   assert.equal(passed[0].earned, 10);
   const failed = gradeStructure(manifest, ['backend/availability.ts'], 'PageBody');
@@ -71,7 +113,16 @@ test('structural grading requires every file pattern and marker', () => {
 });
 
 test('builds a reference-derived implementation review without scoring directory parity', () => {
-  const manifest = { reviewSections: [{ id: 'backend', label: 'Backend', items: [{ id: 'services', label: 'Services', patterns: ['backend/src/services/*task*.ts'] }, { id: 'policies', label: 'Policies', patterns: ['backend/src/policies/*task*.ts'] }] }] };
+  const manifest = {
+    reviewSections: [{
+      id: 'backend',
+      label: 'Backend',
+      items: [
+        { id: 'services', label: 'Services', patterns: ['backend/src/services/*task*.ts'] },
+        { id: 'policies', label: 'Policies', patterns: ['backend/src/policies/*task*.ts'] },
+      ],
+    }],
+  };
   const review = buildImplementationReview(manifest, ['backend/src/services/taskService.ts'], ['backend/src/services/taskService.ts', 'backend/src/policies/taskPolicy.ts']);
   assert.deepEqual(review[0].items, [
     { id: 'services', label: 'Services', implemented: true, candidateFiles: ['backend/src/services/taskService.ts'], referenceFiles: ['backend/src/services/taskService.ts'] },
@@ -90,6 +141,8 @@ test('the Tasks page manifest has a stable 100-point rubric', () => {
   assert.equal(new Set(manifest.models).size, 3);
   assert.ok(manifest.models.includes('gpt-5.6-sol'));
   assert.deepEqual(manifest.reasoningEfforts, ['low', 'medium', 'high']);
+  assert.equal(manifest.version, 7);
+  assert.deepEqual(manifest.isolation.dockerComposeServices, ['frontend', 'nginx', 'backend', 'db', 'db_test']);
 });
 
 test('captures subprocess streams into isolated artifacts', async () => {

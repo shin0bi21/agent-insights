@@ -59,12 +59,13 @@ docker compose ps
 
 Open `http://127.0.0.1:4173`. The container is Linux, so the macOS folder picker is unavailable; enter the exact `RAS_REPOSITORY_PATH` value and select **Connect**.
 
-If the selected target repository or scenario launches Docker, use the explicit runner override instead:
+If the selected target repository or scenario launches Docker, set this only after confirming that the repository and prompt are trusted:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.runner.yml up -d
+RAS_DOCKER_SOCKET_PATH=/var/run/docker.sock
+docker compose up -d
 ```
 
-The override mounts the host Docker socket and therefore grants the application host-level container control. Use it only with repositories and prompts you trust. Docker Desktop or the host daemon must be allowed to share both configured paths.
+The socket setting grants the application host-level container control. Leave it as `/dev/null` for ordinary runs. Docker Desktop or the host daemon must be allowed to share both configured paths.
 
 The image includes Node.js, npm, Git, SSH, Codex, and Docker CLI. A target repository that requires another language or operating-system package needs a deliberate Dockerfile extension; use the native startup path until that toolchain is supported.

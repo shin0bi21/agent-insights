@@ -63,4 +63,4 @@ docker compose exec app docker compose version
 
 `app_data` retains SQLite and `codex_state` retains provider authentication across ordinary restarts and `docker compose down`. Deleting volumes erases that local state and is not a routine restart operation.
 
-For a target-owned Docker scenario, include `-f docker-compose.yml -f docker-compose.runner.yml` in every lifecycle command so Compose addresses the same effective project. The host and container runtime paths must remain identical; changing `.env` requires recreating the service.
+For a trusted target-owned Docker scenario, set `RAS_DOCKER_SOCKET_PATH=/var/run/docker.sock` in `.env` and recreate the service. Leave it as `/dev/null` otherwise. The host and container runtime paths must remain identical; changing `.env` requires recreating the service.
