@@ -9,7 +9,7 @@ import { ensureDirectory, parseJsonLines, readJson, runCommand, spawnWithCapture
 import { grade } from './grade-agent-benchmark.mjs';
 
 const HARNESS_ROOT = resolve(import.meta.dirname, '../..');
-const SCENARIOS_ROOT = resolve(HARNESS_ROOT, 'scenarios-and-docs/scenarios');
+const SCENARIOS_ROOT = resolve(HARNESS_ROOT, 'scenarios');
 
 function usage() {
   console.log(`Usage: node backend/src/run-agent-benchmark.mjs --scenario ID [options]
@@ -157,7 +157,7 @@ async function executeRun({ repoRoot, baseSha, scenarioPath, manifest, model, re
   const runBaseSha = applyGuidanceSnapshot({ repoRoot, worktree, guidance: manifest.guidance });
   const composeOverride = resolve(worktree, 'logs/benchmark-compose.yml');
   ensureDirectory(resolve(worktree, 'logs'));
-  writeFileSync(composeOverride, readFileSync(resolve(HARNESS_ROOT, 'scenarios-and-docs/docker-compose.benchmark.yml'), 'utf8'));
+  writeFileSync(composeOverride, readFileSync(resolve(HARNESS_ROOT, 'docker-compose.benchmark.yml'), 'utf8'));
   const composeProject = `agent-benchmark-${safeModel}-run-${repetition}`.toLowerCase().replaceAll(/[^a-z0-9_-]/g, '-');
   const benchmarkEnv = {
     ...process.env,

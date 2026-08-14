@@ -1,6 +1,6 @@
 ---
 name: maintain-evaluators
-description: Add, change, calibrate, or review benchmark scenarios, evaluator checks, scoring weights, automation-readiness measures, reference comparisons, templates, evidence, and generated reports. Use for changes under scenarios-and-docs, grading and comparison code, score methodology, framework templates, report recommendations, or benchmark fairness and reproducibility.
+description: Add, change, calibrate, or review benchmark scenarios, evaluator checks, scoring weights, automation-readiness measures, reference comparisons, templates, evidence, and generated reports. Use for changes under scenarios, grading and comparison code, score methodology, framework templates, report recommendations, or benchmark fairness and reproducibility.
 ---
 
 # Maintain Evaluators
@@ -13,3 +13,7 @@ description: Add, change, calibrate, or review benchmark scenarios, evaluator ch
 6. Add deterministic tests for parsing, scoring, aggregation, and incompatible-version rejection.
 7. Run `npm test` and a dry run. Run a real agent matrix only when explicitly intended because it consumes time and provider resources.
 8. Document what the score can and cannot establish. Do not infer reliability from one repetition.
+
+## Orchestrate evaluator work
+
+Keep the primary orchestrator on the strongest available model and reasoning tier. Delegate bounded, independent measurement, fixture inventory, and check-tracing lanes to lower-cost workers at low reasoning. Escalate a worker only when its lane demonstrates non-obvious statistical, concurrency, security, or evaluator-design complexity. Keep scoring decisions, applicability, integration, and final validity judgments with the primary orchestrator.

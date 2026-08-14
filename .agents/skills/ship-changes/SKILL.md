@@ -7,6 +7,8 @@ description: Ship approved Repo Automation Score changes through GitHub Issues, 
 
 Ship reviewed concerns serially. Do not delegate operations that share Git or GitHub state. This workflow ends with a clean, synchronized `main`; it never authorizes deployment, package publishing, or uploading local run data.
 
+Keep the shipping orchestrator on the strongest available tier. The only delegated prerequisite may be the complete read-only `split-changes` workflow under that skill’s single low-cost-worker policy. Never delegate mutable branch, stash, commit, push, pull-request, check-waiting, or merge operations.
+
 ## Audit
 
 1. Confirm branch, upstream, complete tracked and untracked diff, stashes, existing issues, and open pull requests.

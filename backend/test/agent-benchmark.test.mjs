@@ -58,7 +58,7 @@ test('structural grading requires every file pattern and marker', () => {
 test('the Tasks page manifest has a stable 100-point rubric', () => {
   const manifest = JSON.parse(readFileSync(resolve(
     import.meta.dirname,
-    '../../scenarios-and-docs/scenarios/tasks-page/manifest.json',
+    '../../scenarios/tasks-page/manifest.json',
   ), 'utf8'));
   const scoredItems = [...manifest.checks, ...manifest.requirements];
   assert.equal(scoredItems.reduce((total, item) => total + item.points, 0), 100);

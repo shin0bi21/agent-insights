@@ -7,6 +7,8 @@ description: Make the top-level split decision for Repo Automation Score working
 
 Make one read-only concern map. Do not edit, test, stash, commit, or make remote changes.
 
+When delegation and tier selection are available, assign this complete read-only workflow to one lower-cost worker at low reasoning. Do not use multiple split workers. Keep the primary orchestrator on the strongest available tier to verify the returned map against the complete inventory and own downstream decisions. If delegation is unavailable, run it directly.
+
 1. Inspect branch status and every tracked and untracked path. Distinguish intentional source changes from ignored run artifacts and generated frontend output.
 2. Group independently reviewable and shippable behavior, not directories. Keep one feature's frontend, backend, tests, contracts, and documentation together when they implement one outcome.
 3. Separate provider adapters, evaluator methodology, product features, workflow tooling, and unrelated fixes when they can ship independently. Record dependencies and hunk-level ownership where concerns share files.

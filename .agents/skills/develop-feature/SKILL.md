@@ -15,3 +15,9 @@ description: Add, change, fix, or refactor Repo Automation Score product behavio
 8. Verify the acceptance ledger and report checks actually run plus genuine limitations.
 
 Do not make target repositories conform to this product's structure. Model repository capabilities and applicable templates explicitly.
+
+## Orchestrate substantial work
+
+Keep the primary orchestrator on the strongest available model and reasoning tier. Delegate bounded, independently useful implementation, inspection, and verification lanes to lower-cost workers at low reasoning by default. Escalate a worker only when its lane demonstrates architectural, concurrency, security, or debugging complexity—not merely because the overall feature is large.
+
+The primary orchestrator owns product decisions, the acceptance ledger, shared contracts, integration, final verification, and user communication. Give workers the exact applicable contracts and paths, require concrete changed paths and evidence, avoid concurrent edits to the same files, and continue single-threaded for small or tightly coupled work.

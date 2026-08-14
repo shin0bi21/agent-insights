@@ -109,7 +109,7 @@ export function createRunManager({ root, spawnProcess = spawn }) {
     if (input.skill && !skills.some(skill => skill.name === input.skill)) throw new Error('Selected skill was not found in the repository.');
     const id = `run-${new Date().toISOString().replaceAll(/[^0-9]/g, '').slice(0, 17)}-${Math.random().toString(36).slice(2, 7)}`;
     const directory = ensureDirectory(resolve(runsRoot, id));
-    const scenarioPrompt = readFileSync(resolve(root, 'scenarios-and-docs/scenarios/tasks-page/prompt.md'), 'utf8');
+    const scenarioPrompt = readFileSync(resolve(root, 'scenarios/tasks-page/prompt.md'), 'utf8');
     const prompt = composePrompt({ scenarioPrompt, skill: input.skill, description: input.description });
     const promptPath = resolve(directory, 'prompt.md');
     const logPath = resolve(directory, 'runner.log');
