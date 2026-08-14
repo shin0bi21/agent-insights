@@ -34,7 +34,9 @@ Anchored menus choose upward or downward placement from viewport space and close
 
 ## Implementation ownership
 
-- Browser workflow: `frontend/src/App.tsx`
+- Browser orchestration: `frontend/src/App.tsx`
+- Page composition: `frontend/src/pages/Home/`, `frontend/src/pages/History/`
+- Shared run presentation: `frontend/src/components/`
 - Typed transport: `frontend/src/api.ts`, `frontend/src/types.ts`
 - Express boundary: `backend/src/http/app.ts`
 - Run orchestration: `backend/src/benchmark-web-lib.ts`, `backend/src/run-agent-benchmark.ts`

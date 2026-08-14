@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
     "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "allowJs": false,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -11,7 +14,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "types": ["node"]
+    "jsx": "react-jsx",
+    "types": ["vite/client"]
   },
-  "include": ["scripts/**/*.ts", "vite.config.ts"]
+  "include": ["src"]
 }

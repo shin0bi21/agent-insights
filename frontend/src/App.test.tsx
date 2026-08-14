@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
-import App, { formatDuration, summarizeBenchmarkProgress } from './App';
+import App from './App';
+import { formatDuration, summarizeBenchmarkProgress } from './components/RunCard/RunCard';
 
 afterEach(() => {
   cleanup();
@@ -13,6 +14,8 @@ vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
   const path = String(input);
   const value = path.endsWith('/api/providers')
     ? [{ id: 'codex', label: 'Codex', models: [{ id: 'luna', label: 'Luna' }] }]
+    : path.endsWith('/api/runtime')
+      ? { directoryPickerAvailable: false, repositoryPath: '/mounted/example' }
     : path.endsWith('/api/repository')
       ? { repo: '/tmp/example', skills: Array.from({ length: 5 }, (_, index) => ({ name: `skill-${index}`, description: '', path: '' })) }
       : [];
@@ -23,10 +26,13 @@ test('renders the typed run configuration and provider catalog', async () => {
   render(<App />);
   expect(screen.getByRole('heading', { name: 'Repo Automation Score' })).toBeInTheDocument();
   expect(screen.getByLabelText('Local repository path')).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByLabelText('Local repository path')).toHaveValue('/mounted/example'));
   await waitFor(() => expect(screen.getByRole('button', { name: 'Platform' })).toHaveTextContent('Codex'));
   expect(screen.getByRole('button', { name: 'Model' })).toHaveTextContent('Luna');
   expect(screen.getByRole('button', { name: 'What kind of feature is this?' })).toHaveTextContent('Full stack');
   expect(screen.queryByText('Repository skill')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Browse…' })).not.toBeInTheDocument();
+  expect(screen.getByText(/Folder browsing is unavailable/)).toBeInTheDocument();
 });
 
 test('shows repository readiness inside the repository section', async () => {
@@ -34,8 +40,9 @@ test('shows repository readiness inside the repository section', async () => {
   fireEvent.change(screen.getByLabelText('Local repository path'), { target: { value: '/tmp/example' } });
   fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
   const repository = screen.getByRole('group', { name: 'Repository' });
-  expect(await within(repository).findByText('Repository ready. AGENTS.md and 5 skills discovered.')).toBeInTheDocument();
-  expect(repository).toHaveClass('ready');
+  expect(
+    await within(repository).findByRole('status'),
+  ).toHaveTextContent('Repository ready. AGENTS.md and 5 skills discovered.');
 });
 
 test('marks the repository step as invalid when agent guidance is missing', async () => {
@@ -48,8 +55,9 @@ test('marks the repository step as invalid when agent guidance is missing', asyn
   fireEvent.change(screen.getByLabelText('Local repository path'), { target: { value: '/tmp/unguided' } });
   fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
   const repository = screen.getByRole('group', { name: 'Repository' });
-  expect(await within(repository).findByText(/AGENTS\.md is required/)).toBeInTheDocument();
-  expect(repository).toHaveClass('error');
+  expect(await within(repository).findByRole('status')).toHaveTextContent(
+    'Repository is not automation-ready: AGENTS.md is required.',
+  );
 });
 
 test('formats elapsed run time compactly', () => {
@@ -58,7 +66,14 @@ test('formats elapsed run time compactly', () => {
 });
 
 test('summarizes benchmark activity without Codex state noise', () => {
-  const progress = `Runner\n[benchmark] gpt-5.6-sol (low) repetition 1/1\nPreparing worktree (detached HEAD 70221361)\nAgent progress\n2026-08-14T03:41:06Z WARN codex_rollout::list: state db discrepancy during lookup: falling_back\n2026-08-14T03:45:03Z ERROR codex_core::tools::router: error=apply_patch verification failed in /tmp/my-webapp-agent-benchmark-ABC/gpt-5.6-sol-low-run-1/file.ts`;
+  const progress = [
+    'Runner',
+    '[benchmark] gpt-5.6-sol (low) repetition 1/1',
+    'Preparing worktree (detached HEAD 70221361)',
+    'Agent progress',
+    '2026-08-14T03:41:06Z WARN codex_rollout::list: state db discrepancy during lookup: falling_back',
+    '2026-08-14T03:45:03Z ERROR codex_core::tools::router: error=apply_patch verification failed in /tmp/my-webapp-agent-benchmark-ABC/gpt-5.6-sol-low-run-1/file.ts',
+  ].join('\n');
   expect(summarizeBenchmarkProgress(progress)).toEqual({
     worktree: '/tmp/my-webapp-agent-benchmark-ABC/gpt-5.6-sol-low-run-1',
     summary: '[benchmark] gpt-5.6-sol (low) repetition 1/1\nPreparing worktree (detached HEAD 70221361)\nAgent adjusted a patch after the target changed.',
@@ -80,9 +95,48 @@ test('shows only the latest run on Home and every run in History', async () => {
       ? [{ id: 'codex', label: 'Codex', models: [{ id: 'luna', label: 'Luna' }] }]
       : path.endsWith('/api/runs')
         ? [
-            { id: 'active', createdAt: new Date().toISOString(), status: 'running', provider: 'codex', model: 'luna', reasoningEffort: 'low', featureType: 'frontend', skill: 'develop-feature', description: 'Active feature', artifactPath: '/tmp/active', progress: '', comparison: null },
-            { id: 'done', createdAt: new Date().toISOString(), status: 'completed', provider: 'codex', model: 'luna', reasoningEffort: 'low', featureType: 'full-stack', skill: 'develop-feature', description: 'Finished feature', artifactPath: '/tmp/done', progress: '', comparison: null },
-            { id: 'stale', createdAt: new Date().toISOString(), status: 'interrupted', provider: 'codex', model: 'terra', reasoningEffort: 'low', featureType: 'backend', skill: 'develop-feature', description: 'Interrupted feature', artifactPath: '/tmp/stale', progress: '', comparison: null },
+            {
+              id: 'active',
+              createdAt: new Date().toISOString(),
+              status: 'running',
+              provider: 'codex',
+              model: 'luna',
+              reasoningEffort: 'low',
+              featureType: 'frontend',
+              skill: 'develop-feature',
+              description: 'Active feature',
+              artifactPath: '/tmp/active',
+              progress: '',
+              comparison: null,
+            },
+            {
+              id: 'done',
+              createdAt: new Date().toISOString(),
+              status: 'completed',
+              provider: 'codex',
+              model: 'luna',
+              reasoningEffort: 'low',
+              featureType: 'full-stack',
+              skill: 'develop-feature',
+              description: 'Finished feature',
+              artifactPath: '/tmp/done',
+              progress: '',
+              comparison: null,
+            },
+            {
+              id: 'stale',
+              createdAt: new Date().toISOString(),
+              status: 'interrupted',
+              provider: 'codex',
+              model: 'terra',
+              reasoningEffort: 'low',
+              featureType: 'backend',
+              skill: 'develop-feature',
+              description: 'Interrupted feature',
+              artifactPath: '/tmp/stale',
+              progress: '',
+              comparison: null,
+            },
           ]
         : [];
     return { ok: true, json: async () => value } as Response;
@@ -112,8 +166,29 @@ test('shows only the latest run on Home and every run in History', async () => {
 });
 
 test('keeps start and retry disabled when any historical record is still running', async () => {
-  const completed = { id: 'newer', createdAt: '2026-08-14T02:00:00.000Z', status: 'completed', provider: 'codex', model: 'luna', reasoningEffort: 'low', featureType: 'frontend', description: 'Finished.', comparison: null };
-  const running = { id: 'older', createdAt: '2026-08-14T01:00:00.000Z', status: 'running', repo: '/tmp/repo', provider: 'codex', model: 'luna', reasoningEffort: 'low', featureType: 'frontend', description: 'Still running.', comparison: null };
+  const completed = {
+    id: 'newer',
+    createdAt: '2026-08-14T02:00:00.000Z',
+    status: 'completed',
+    provider: 'codex',
+    model: 'luna',
+    reasoningEffort: 'low',
+    featureType: 'frontend',
+    description: 'Finished.',
+    comparison: null,
+  };
+  const running = {
+    id: 'older',
+    createdAt: '2026-08-14T01:00:00.000Z',
+    status: 'running',
+    repo: '/tmp/repo',
+    provider: 'codex',
+    model: 'luna',
+    reasoningEffort: 'low',
+    featureType: 'frontend',
+    description: 'Still running.',
+    comparison: null,
+  };
   vi.mocked(fetch).mockImplementation(async input => {
     const requestPath = String(input);
     if (requestPath.endsWith('/api/providers')) return { ok: true, json: async () => [{ id: 'codex', label: 'Codex', models: [{ id: 'luna', label: 'Luna' }] }] } as Response;
@@ -126,7 +201,20 @@ test('keeps start and retry disabled when any historical record is still running
 });
 
 test('retries an interrupted run with its recorded configuration', async () => {
-  const interrupted = { id: 'stale', createdAt: new Date().toISOString(), status: 'interrupted', repo: '/tmp/repo', provider: 'codex', model: 'gpt-5.6-terra', reasoningEffort: 'low', featureType: 'frontend', description: 'Build Tasks.', artifactPath: '/tmp/stale', progress: '', comparison: null };
+  const interrupted = {
+    id: 'stale',
+    createdAt: new Date().toISOString(),
+    status: 'interrupted',
+    repo: '/tmp/repo',
+    provider: 'codex',
+    model: 'gpt-5.6-terra',
+    reasoningEffort: 'low',
+    featureType: 'frontend',
+    description: 'Build Tasks.',
+    artifactPath: '/tmp/stale',
+    progress: '',
+    comparison: null,
+  };
   const retried = { ...interrupted, id: 'retry', status: 'running', createdAt: new Date().toISOString() };
   vi.mocked(fetch).mockImplementation(async (input, init) => {
     const requestPath = String(input);
@@ -137,12 +225,36 @@ test('retries an interrupted run with its recorded configuration', async () => {
   });
   render(<App />);
   fireEvent.click(await screen.findByRole('button', { name: 'Retry Run' }));
-  await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/runs', expect.objectContaining({ method: 'POST', body: JSON.stringify({ repo: '/tmp/repo', provider: 'codex', model: 'gpt-5.6-terra', reasoningEffort: 'low', featureType: 'frontend', description: 'Build Tasks.' }) })));
+  await waitFor(() => expect(fetch).toHaveBeenCalledWith(
+    '/api/runs',
+    expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        repo: '/tmp/repo',
+        provider: 'codex',
+        model: 'gpt-5.6-terra',
+        reasoningEffort: 'low',
+        featureType: 'frontend',
+        description: 'Build Tasks.',
+      }),
+    }),
+  ));
   expect(await screen.findByText('Run in progress')).toBeInTheDocument();
 });
 
 test('requires the matching repository to be reconnected for a durable historical retry', async () => {
-  const interrupted = { id: 'stale', createdAt: new Date().toISOString(), status: 'interrupted', repositoryName: 'my-webapp', provider: 'codex', model: 'gpt-5.6-terra', reasoningEffort: 'low', featureType: 'frontend', description: 'Build Tasks.', comparison: null };
+  const interrupted = {
+    id: 'stale',
+    createdAt: new Date().toISOString(),
+    status: 'interrupted',
+    repositoryName: 'my-webapp',
+    provider: 'codex',
+    model: 'gpt-5.6-terra',
+    reasoningEffort: 'low',
+    featureType: 'frontend',
+    description: 'Build Tasks.',
+    comparison: null,
+  };
   vi.mocked(fetch).mockImplementation(async (input, init) => {
     const requestPath = String(input);
     if (requestPath.endsWith('/api/providers')) return { ok: true, json: async () => [{ id: 'codex', label: 'Codex', models: [{ id: 'gpt-5.6-terra', label: 'Terra' }] }] } as Response;
@@ -162,7 +274,18 @@ test('requires the matching repository to be reconnected for a durable historica
 });
 
 test('does not retry durable history against a different connected repository', async () => {
-  const interrupted = { id: 'stale', createdAt: new Date().toISOString(), status: 'interrupted', repositoryName: 'my-webapp', provider: 'codex', model: 'gpt-5.6-terra', reasoningEffort: 'low', featureType: 'frontend', description: 'Build Tasks.', comparison: null };
+  const interrupted = {
+    id: 'stale',
+    createdAt: new Date().toISOString(),
+    status: 'interrupted',
+    repositoryName: 'my-webapp',
+    provider: 'codex',
+    model: 'gpt-5.6-terra',
+    reasoningEffort: 'low',
+    featureType: 'frontend',
+    description: 'Build Tasks.',
+    comparison: null,
+  };
   vi.mocked(fetch).mockImplementation(async (input, init) => {
     const requestPath = String(input);
     if (requestPath.endsWith('/api/providers')) return { ok: true, json: async () => [{ id: 'codex', label: 'Codex', models: [{ id: 'gpt-5.6-terra', label: 'Terra' }] }] } as Response;
@@ -181,7 +304,18 @@ test('does not retry durable history against a different connected repository', 
 });
 
 test('does not let an older refresh overwrite a newly retried run', async () => {
-  const interrupted = { id: 'stale', createdAt: new Date().toISOString(), status: 'interrupted', repo: '/tmp/repo', provider: 'codex', model: 'gpt-5.6-terra', reasoningEffort: 'low', featureType: 'frontend', description: 'Build Tasks.', comparison: null };
+  const interrupted = {
+    id: 'stale',
+    createdAt: new Date().toISOString(),
+    status: 'interrupted',
+    repo: '/tmp/repo',
+    provider: 'codex',
+    model: 'gpt-5.6-terra',
+    reasoningEffort: 'low',
+    featureType: 'frontend',
+    description: 'Build Tasks.',
+    comparison: null,
+  };
   const retried = { ...interrupted, id: 'retry', status: 'running', createdAt: new Date().toISOString() };
   let reads = 0;
   let resolveRefresh: ((response: Response) => void) | undefined;
@@ -209,11 +343,39 @@ test('keeps completed cards compact and marks them successful', async () => {
   vi.mocked(fetch).mockImplementation(async input => {
     const requestPath = String(input);
     if (requestPath.endsWith('/api/providers')) return { ok: true, json: async () => [] } as Response;
-    if (requestPath.endsWith('/api/runs')) return { ok: true, json: async () => [{ id: 'done', createdAt: new Date().toISOString(), status: 'completed', repo: '/tmp/repo', provider: 'codex', model: 'gpt-5.6-luna', reasoningEffort: 'low', featureType: 'frontend', description: 'Build Tasks.', artifactPath: '/tmp/done', progress: '', comparison: { comparison: [{ medianScore: 100, medianDurationMs: 1000, inputTokens: 100, cachedInputTokens: 50, outputTokens: 10, missedRequirements: {}, implementationReview: null }] } }] } as Response;
+    if (requestPath.endsWith('/api/runs')) {
+      return {
+        ok: true,
+        json: async () => [{
+          id: 'done',
+          createdAt: new Date().toISOString(),
+          status: 'completed',
+          repo: '/tmp/repo',
+          provider: 'codex',
+          model: 'gpt-5.6-luna',
+          reasoningEffort: 'low',
+          featureType: 'frontend',
+          description: 'Build Tasks.',
+          artifactPath: '/tmp/done',
+          progress: '',
+          comparison: {
+            comparison: [{
+              medianScore: 100,
+              medianDurationMs: 1000,
+              inputTokens: 100,
+              cachedInputTokens: 50,
+              outputTokens: 10,
+              missedRequirements: {},
+              implementationReview: null,
+            }],
+          },
+        }],
+      } as Response;
+    }
     return { ok: true, json: async () => [] } as Response;
   });
   render(<App />);
-  expect(await screen.findByText('completed')).toHaveClass('completed');
+  expect(await screen.findByText('completed')).toBeVisible();
   expect(screen.queryByRole('button', { name: 'View Job Configuration' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'View Report' })).toBeInTheDocument();
 });

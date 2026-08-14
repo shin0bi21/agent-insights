@@ -1,13 +1,13 @@
 # Frontend architecture
 
-The frontend is a React and TypeScript application built with Vite. It presents repository connection, run setup, live activity, history, settings, and reports while treating the localhost API as its only privileged boundary.
+The frontend is a React and TypeScript application built with Vite and Tailwind CSS 4. It presents repository connection, run setup, live activity, history, settings, and reports while treating the localhost API as its only privileged boundary.
 
 Unless stated otherwise, paths are relative to `frontend/`.
 
 ```text
-React view → typed API adapter → localhost Express API
+React page → product components → common interaction primitives
      │
-     └── common components and presentation helpers
+     └── typed API adapter → localhost Express API
 ```
 
 ## Ownership map
@@ -15,13 +15,16 @@ React view → typed API adapter → localhost Express API
 | Path | Owns |
 |---|---|
 | `src/main.tsx` | React root and application bootstrap |
-| `src/App.tsx` | Route-like view selection, repository setup, run lifecycle presentation, and top-level state |
+| `src/App.tsx` | Route-like view selection, top-level run orchestration, and cross-page state |
+| `src/pages/` | Home, History, and Settings composition plus page-specific components |
+| `src/components/` | Run-specific product components reused across pages |
 | `src/api.ts` | Typed HTTP requests to the localhost API |
 | `src/types.ts` | Browser-facing provider, repository, run, activity, and report contracts |
-| `src/common/components/` | Reusable interaction and report units |
-| `src/styles.css` | Current application-wide design tokens and layout |
+| `src/common/components/` | Reusable product-agnostic interaction primitives |
+| `src/styles.css` | Minimal Tailwind import and `data-theme` dark-mode variant |
+| `src/ui.ts` | Shared Tailwind utility strings for recurring product treatments |
 
-The current application is intentionally small. Split `App.tsx` into pages, feature hooks, or route infrastructure when an extracted owner has a coherent contract and tests; do not create directories only to imitate a larger application.
+Pages own their view composition. Page-only components stay under that page, while components used by multiple pages live under `src/components/`. Keep `common/components` limited to reusable product-agnostic interaction primitives.
 
 ## Boundary rules
 
@@ -31,6 +34,10 @@ The current application is intentionally small. Split `App.tsx` into pages, feat
 - Remote run state comes from the API. Local React state owns view selection, form input, open overlays, and appearance preferences.
 - Reusable interaction primitives belong under `common/components`; run-specific report content may compose them without moving privileged logic into the browser.
 - Components must not reveal private chain-of-thought. Live activity is limited to explicit messages, commands, file changes, checks, and outcomes.
+- Production presentation uses Tailwind utilities only. Keep `src/styles.css` limited to the
+  Tailwind entry and dark-mode variant; do not add component stylesheets or authored selectors.
+- Theme utilities use the root `data-theme="dark"` attribute so the persisted appearance
+  preference remains independent from the operating-system theme.
 
 ## Interaction and accessibility
 
