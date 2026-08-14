@@ -36,7 +36,6 @@ COPY --from=build /app/backend/dist ./backend/dist
 COPY --from=build /app/frontend/dist ./frontend/dist
 COPY backend/db/migrations ./backend/db/migrations
 COPY scenarios ./scenarios
-COPY docker-compose.benchmark.yml ./docker-compose.benchmark.yml
 
 RUN mkdir -p /data /root/.codex
 

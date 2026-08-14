@@ -13,6 +13,7 @@ services:
       REPO_AUTOMATION_SCORE_HOST: 0.0.0.0
       REPO_AUTOMATION_SCORE_DB_PATH: /data/repo-automation-score.sqlite
       BENCHMARK_WEB_PORT: 4173
+      RAS_REPOSITORY_PATH: ${RAS_REPOSITORY_PATH:?Copy .env.example to .env and set RAS_REPOSITORY_PATH}
       TMPDIR: ${RAS_RUNTIME_PATH:?Copy .env.example to .env and set RAS_RUNTIME_PATH}
       HOME: /root
       CODEX_HOME: /root/.codex
@@ -29,6 +30,11 @@ services:
       - type: bind
         source: ${RAS_RUNTIME_PATH:?Copy .env.example to .env and set RAS_RUNTIME_PATH}
         target: ${RAS_RUNTIME_PATH:?Copy .env.example to .env and set RAS_RUNTIME_PATH}
+      # /dev/null keeps host Docker unavailable by default. Set this to the
+      # daemon socket only for trusted repositories that launch containers.
+      - type: bind
+        source: ${RAS_DOCKER_SOCKET_PATH:-/dev/null}
+        target: /var/run/docker.sock
     cap_drop:
       - ALL
     security_opt:
