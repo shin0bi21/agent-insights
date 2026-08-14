@@ -8,12 +8,16 @@ export interface RepositoryConnection { repo: string; skills: RepositorySkill[] 
 export interface ComparisonRow {
   medianScore: number | null;
   medianDurationMs: number | null;
+  inputTokens: number;
+  cachedInputTokens: number;
+  outputTokens: number;
   missedRequirements: Record<string, number>;
   implementationReview: ImplementationReviewSection[] | null;
 }
 
 export interface ImplementationReviewItem { id: string; label: string; implemented: boolean; candidateFiles: string[]; referenceFiles: string[] }
 export interface ImplementationReviewSection { id: string; label: string; classification: 'reference-derived'; items: ImplementationReviewItem[] }
+export interface RunActivityNode { id: string; parentId: string | null; kind: 'phase' | 'agent_message' | 'command_execution' | 'file_change'; label: string; detail: string; status: 'running' | 'completed' | 'failed' }
 
 export interface RunRecord {
   id: string;
@@ -28,6 +32,7 @@ export interface RunRecord {
   status: RunStatus;
   artifactPath: string;
   progress: string;
+  activity?: RunActivityNode[];
   comparison: { comparison: ComparisonRow[] } | null;
 }
 
