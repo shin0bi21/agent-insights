@@ -11,6 +11,7 @@ Repo Automation Score is a local-first application for measuring how reliably ag
 | Persistence | SQLite, Kysely, better-sqlite3 |
 | Agent execution | Provider-neutral contract; Codex is the first provider |
 | Isolation | Detached Git worktrees and optional scenario-owned Docker Compose |
+| Local packaging | Native Node.js or Docker Compose |
 | Verification | Node test runner, Vitest, TypeScript, GitHub Actions |
 
 ## Quick start
@@ -26,6 +27,8 @@ npm run web:dev
 Open the Vite URL printed by the process, normally `http://127.0.0.1:5173`. The production-style local build is available with `npm run web` at `http://127.0.0.1:4173`.
 
 The service binds to loopback and runs with the terminal user's permissions. Durable run evidence is stored in the Git-ignored local SQLite database. Absolute repository and worktree paths are never stored; an active run may expose them transiently to the loopback UI for local job inspection. Raw provider output and runner files are deleted after successful normalization.
+
+Docker is an optional supported startup path for a consistent application runtime. It still requires an explicitly mounted target repository and provider authentication; scenarios that launch Docker require the separate, privileged runner override. See [Docker development](docs/development/stack/docker.md).
 
 ## Documentation
 

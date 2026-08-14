@@ -1,0 +1,8 @@
+# Opt in only when the selected target repository or scenario launches Docker.
+# Access to the Docker daemon is equivalent to host-level control.
+services:
+  app:
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock

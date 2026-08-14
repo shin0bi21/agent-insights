@@ -13,6 +13,7 @@ Use this handbook when adding or changing product code. Feature documents explai
 | Task | Guide |
 |---|---|
 | Understand the stack | [Stack guide](stack/README.md) |
+| Change the container runtime | [Docker development](stack/docker.md) |
 | Add product behavior | [Adding a feature](adding-a-feature.md) |
 | Change existing behavior | [Updating a feature](updating-a-feature.md) |
 | Change run persistence | [Database changes](backend/database-changes.md) and [run persistence](backend/run-persistence.md) |

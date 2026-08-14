@@ -9,7 +9,7 @@ import { resolve } from 'node:path';
 import { buildImplementationReview, gradeStructure } from '../src/grade-agent-benchmark.js';
 import { parseJsonLines, spawnWithCapture, summarizeEvents } from '../src/agent-benchmark-lib.js';
 import { codexArguments, comparison, parseArguments } from '../src/run-agent-benchmark.js';
-import { chooseRepositoryDirectory, composePrompt, createRunManager, discoverSkills, parseAgentActivity, providerCatalog, validateAutomationGuidance, validateRepository } from '../src/benchmark-web-lib.js';
+import { benchmarkRunnerInvocation, chooseRepositoryDirectory, composePrompt, createRunManager, discoverSkills, parseAgentActivity, providerCatalog, validateAutomationGuidance, validateRepository, validateRunTemporaryRoot } from '../src/benchmark-web-lib.js';
 
 test('parses a bounded benchmark matrix', () => {
   assert.deepEqual(parseArguments([
@@ -34,6 +34,17 @@ test('parses a bounded benchmark matrix', () => {
 test('accepts a prepared prompt file for web-launched runs', () => {
   const options = parseArguments(['--repo', '/tmp/app', '--scenario', 'tasks-page', '--prompt-file', '/tmp/prompt.md']);
   assert.equal(options.promptFile, '/tmp/prompt.md');
+});
+
+test('uses compiled benchmark code in the production container', () => {
+  assert.deepEqual(benchmarkRunnerInvocation('/app', { NODE_ENV: 'production' }), {
+    command: process.execPath,
+    args: ['/app/backend/dist/run-agent-benchmark.js'],
+  });
+  assert.deepEqual(benchmarkRunnerInvocation('/app', {}), {
+    command: process.execPath,
+    args: ['--import', 'tsx', '/app/backend/src/run-agent-benchmark.ts'],
+  });
 });
 
 test('parses JSONL and totals usage without losing the final message', () => {
@@ -196,6 +207,11 @@ test('uses a native macOS picker without interpolating shell input', () => {
   assert.equal(repo, '/tmp/example');
   assert.deepEqual(call, { command: 'osascript', args: ['-e', 'POSIX path of (choose folder with prompt "Choose a Git repository")'] });
   assert.throws(() => chooseRepositoryDirectory({ platform: 'linux' }), /currently available on macOS/);
+});
+
+test('keeps configured run temporary storage outside the attached repository', () => {
+  assert.equal(validateRunTemporaryRoot('/workspace/repository', '/runtime/repo-score'), '/runtime/repo-score');
+  assert.throws(() => validateRunTemporaryRoot('/workspace/repository', '/workspace/repository/.runtime'), /outside the attached repository/);
 });
 
 test('keeps local run artifacts and databases outside version control', () => {

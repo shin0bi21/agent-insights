@@ -35,3 +35,32 @@ npm run db:import-results
 The service runs with the terminal user's permissions and must remain on loopback. Active files live in the operating system's temporary directory and are deleted after successful normalization. A normalization failure retains the temporary directory and prints its path.
 
 Preview scenario and matrix configuration with `--dry-run` before a real run. Docker is used only when the target scenario requires it. Do not call a run successful until the exact provider, evaluator, and report path has completed.
+
+## Docker lifecycle
+
+After completing [Docker setup](setup.md), use one consistent Compose file set for a session:
+
+```bash
+docker compose up -d
+docker compose ps
+docker compose logs --follow --tail=100 app
+docker compose down
+```
+
+Rebuild after changing the Dockerfile, lockfile, compiled application code, or the pinned provider version:
+
+```bash
+docker compose up -d --build
+```
+
+Run database operations and inspect installed tools inside the container:
+
+```bash
+docker compose exec app node backend/dist/db/status-cli.js
+docker compose exec app codex --version
+docker compose exec app docker compose version
+```
+
+`app_data` retains SQLite and `codex_state` retains provider authentication across ordinary restarts and `docker compose down`. Deleting volumes erases that local state and is not a routine restart operation.
+
+For a target-owned Docker scenario, include `-f docker-compose.yml -f docker-compose.runner.yml` in every lifecycle command so Compose addresses the same effective project. The host and container runtime paths must remain identical; changing `.env` requires recreating the service.

@@ -44,6 +44,14 @@ export function chooseRepositoryDirectory({ platform = process.platform, execute
   }
 }
 
+export function validateRunTemporaryRoot(repo, temporaryRoot = tmpdir()) {
+  const resolvedRoot = resolve(temporaryRoot);
+  if (within(repo, resolvedRoot)) {
+    throw new Error('Run temporary storage must be outside the attached repository.');
+  }
+  return resolvedRoot;
+}
+
 function skillMetadata(skillPath) {
   const source = readFileSync(skillPath, 'utf8');
   const frontmatter = source.match(/^---\s*\n([\s\S]*?)\n---/);
@@ -119,6 +127,13 @@ export function parseAgentActivity(source, runStatus = 'completed') {
   return [{ id: 'agent-work', parentId: null, kind: 'phase', label: 'Agent work', detail: '', status }, ...children];
 }
 
+export function benchmarkRunnerInvocation(root, environment = process.env) {
+  if (environment.NODE_ENV === 'production') {
+    return { command: process.execPath, args: [resolve(root, 'backend/dist/run-agent-benchmark.js')] };
+  }
+  return { command: process.execPath, args: ['--import', 'tsx', resolve(root, 'backend/src/run-agent-benchmark.ts')] };
+}
+
 function readFileTail(path, maximumBytes = 1_000_000) {
   const size = statSync(path).size;
   const length = Math.min(size, maximumBytes);
@@ -185,7 +200,7 @@ export function createRunManager({ root, spawnProcess = spawn }) {
     if (!ALLOWED_EFFORTS.includes(input.reasoningEffort)) throw new Error('Unsupported reasoning effort.');
     if (!ALLOWED_FEATURE_TYPES.includes(input.featureType)) throw new Error('Unsupported feature type.');
     const id = `run-${new Date().toISOString().replaceAll(/[^0-9]/g, '').slice(0, 17)}-${Math.random().toString(36).slice(2, 7)}`;
-    const directory = mkdtempSync(resolve(tmpdir(), `repo-automation-score-${id}-`));
+    const directory = mkdtempSync(resolve(validateRunTemporaryRoot(repo), `repo-automation-score-${id}-`));
     const scenarioPrompt = readFileSync(resolve(root, 'scenarios/tasks-page/prompt.md'), 'utf8');
     const prompt = composePrompt({ scenarioPrompt, featureType: input.featureType, description: input.description });
     const promptPath = resolve(directory, 'prompt.md');
@@ -197,9 +212,10 @@ export function createRunManager({ root, spawnProcess = spawn }) {
     const baseRevision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
     await persistence.createRun({ id, repositoryName: basename(repo), baseRevision, featureType: input.featureType, description: config.description, preparedPrompt: prompt, promptTemplateVersion: 'tasks-page:v1', evaluationTemplate: 'tasks-page', provider: provider.id, agent: input.model, reasoningLevel: input.reasoningEffort, createdAt: config.createdAt });
     await persistence.updateRunStatus(id, 'running');
-    const args = ['--import', 'tsx', resolve(root, 'backend/src/run-agent-benchmark.ts'), '--repo', repo, '--scenario', 'tasks-page', '--feature-type', input.featureType, '--models', input.model, '--reasoning-efforts', input.reasoningEffort, '--repetitions', '1', '--prompt-file', promptPath, '--output-dir', directory];
+    const invocation = benchmarkRunnerInvocation(root);
+    const args = [...invocation.args, '--repo', repo, '--scenario', 'tasks-page', '--feature-type', input.featureType, '--models', input.model, '--reasoning-efforts', input.reasoningEffort, '--repetitions', '1', '--prompt-file', promptPath, '--output-dir', directory];
     const output = writeFileSync;
-    const child = spawnProcess(process.execPath, args, { cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawnProcess(invocation.command, args, { cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
     active.set(id, { status: 'running', exitCode: null, child, directory, repo });
     const append = chunk => output(logPath, chunk, { flag: 'a' });
     child.stdout.on('data', append);
