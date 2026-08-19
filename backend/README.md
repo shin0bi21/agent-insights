@@ -1,6 +1,6 @@
 # Agent Automation Score backend
 
-Express + TypeScript + Kysely/SQLite localhost service for repository discovery, agent execution, evaluation, and report persistence.
+Express + TypeScript + Kysely/SQLite localhost service for repository discovery, session-source integration, agent execution, evaluation, and report persistence.
 
 ## Documentation
 
@@ -34,6 +34,8 @@ Express + TypeScript + Kysely/SQLite localhost service for repository discovery,
 | `src/run-agent-benchmark.ts` | Scenario matrix and isolated candidate execution |
 | `src/grade-agent-benchmark.ts` | Evaluation and implementation review |
 | `src/services/run-persistence.ts` | Run lifecycle persistence, legacy import, and report projections |
+| `src/services/codex-session-source.ts` | No-token Codex App Server connection and observable-event normalization |
+| `src/services/session-persistence.ts` | Provider-neutral live snapshots, replay-safe batching, and durable watermarks |
 | `src/db/` | SQLite client, configuration, types, and migration runtime |
 | `db/migrations/` | Forward-only schema migrations |
 | `db/scripts/` | Migration status and legacy import commands |
@@ -50,6 +52,10 @@ Express + TypeScript + Kysely/SQLite localhost service for repository discovery,
 | `POST` | `/api/runs` | Validate and start a run |
 | `POST` | `/api/repository` | Validate guidance and discover repository skills |
 | `POST` | `/api/pick-directory` | Open the supported native directory picker |
+| `POST` | `/api/session-source/probe` | Verify Codex session access without starting a turn |
+| `GET` | `/api/session-sources/codex/sessions` | List safe stored-session metadata from Codex |
+| `POST` | `/api/sessions/import` | Normalize a stored Codex session into SQLite |
+| `GET` | `/api/sessions/:id` | Read a normalized session review projection |
 
 Routes in `src/http/app.ts` remain the source of truth. The service is designed for loopback use and has no remote-user authentication boundary.
 

@@ -66,6 +66,64 @@ test('server binding stays loopback by default and requires an explicit containe
   assert.throws(() => resolveServerHost({ AGENT_AUTOMATION_SCORE_HOST: 'example.com' }), /loopback or all-interface/);
 });
 
+test('session source probe stays behind an injectable API boundary', async () => {
+  const app = createBenchmarkApp({
+    root: process.cwd(),
+    manager: { list: () => [], get: () => null, start: () => null },
+    probeSessions: async () => ({
+      connected: true,
+      loadedThreadIds: ['thread-1'],
+      storedThreadAvailable: true,
+    }),
+  });
+
+  await withApp(app, async origin => {
+    const response = await fetch(`${origin}/api/session-source/probe`, { method: 'POST' });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      connected: true,
+      loadedThreadIds: ['thread-1'],
+      storedThreadAvailable: true,
+    });
+  });
+});
+
+test('stored session list, import, and review stay behind the session manager boundary', async () => {
+  const imported = [];
+  const sessionManager = {
+    listSourceSessions: async () => [{ externalId: 'thread-12345678' }],
+    listImported: async () => [{ id: 'session-1' }],
+    get: async id => id === 'session-1' ? { id } : null,
+    importCodex: async externalId => {
+      imported.push(externalId);
+      if (externalId === 'thread-invalid') throw new Error('Import failed safely.');
+      return { id: 'session-1', externalSessionId: externalId };
+    },
+  };
+  const app = createBenchmarkApp({
+    root: process.cwd(),
+    manager: { list: () => [], get: () => null, start: () => null },
+    sessionManager,
+  });
+  await withApp(app, async origin => {
+    assert.deepEqual(await fetch(`${origin}/api/session-sources/codex/sessions`).then(response => response.json()), [{ externalId: 'thread-12345678' }]);
+    assert.deepEqual(await fetch(`${origin}/api/sessions`).then(response => response.json()), [{ id: 'session-1' }]);
+    assert.deepEqual(await fetch(`${origin}/api/sessions/session-1`).then(response => response.json()), { id: 'session-1' });
+    assert.equal((await fetch(`${origin}/api/sessions/missing`)).status, 404);
+
+    const created = await fetch(`${origin}/api/sessions/import`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ source: 'codex', externalSessionId: 'thread-12345678' }),
+    });
+    assert.equal(created.status, 201);
+    assert.deepEqual(imported, ['thread-12345678']);
+    const invalid = await fetch(`${origin}/api/sessions/import`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ source: 'other' }),
+    });
+    assert.equal(invalid.status, 400);
+  });
+});
+
 test('Express API returns JSON for validation, parse, and not-found failures', async () => {
   const app = createBenchmarkApp({
     root: process.cwd(),
