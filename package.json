@@ -15,6 +15,7 @@
     "web:dev": "tsx backend/src/benchmark-web-dev.ts",
     "web:build": "vite build",
     "tooling:check": "tsc -p tsconfig.json",
+    "check": "npm run validate:skills && npm run validate:docs && npm run tooling:check && npm run backend:check && npm run web:check",
     "web:check": "tsc -p frontend/tsconfig.json",
     "backend:check": "tsc -p backend/tsconfig.json --noEmit",
     "backend:build": "tsc -p backend/tsconfig.json",
