@@ -17,7 +17,7 @@ import {
 import { grade } from './grade-agent-benchmark.js';
 
 const HARNESS_ROOT = resolve(import.meta.dirname, '../..');
-const SCENARIOS_ROOT = resolve(HARNESS_ROOT, 'scenarios');
+const BENCHMARKS_ROOT = resolve(HARNESS_ROOT, 'benchmarks');
 const FEATURE_TYPES = ['frontend', 'backend', 'full-stack'];
 
 function usage() {
@@ -319,7 +319,7 @@ async function executeRun({ repoRoot, baseSha, scenarioPath, manifest, model, re
 async function main() {
   const options = parseArguments(process.argv.slice(2));
   if (options.help) { usage(); return; }
-  const scenarioPath = resolve(SCENARIOS_ROOT, options.scenario);
+  const scenarioPath = resolve(BENCHMARKS_ROOT, options.scenario);
   const manifest = readJson(resolve(scenarioPath, 'manifest.json'));
   if (manifest.id !== options.scenario) throw new Error(`Scenario id mismatch: expected ${options.scenario}.`);
   const models = options.models ?? manifest.models;

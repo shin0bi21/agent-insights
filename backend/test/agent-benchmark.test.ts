@@ -133,7 +133,7 @@ test('builds a reference-derived implementation review without scoring directory
 test('the Tasks page manifest has a stable 100-point rubric', () => {
   const manifest = JSON.parse(readFileSync(resolve(
     import.meta.dirname,
-    '../../scenarios/tasks-page/manifest.json',
+    '../../benchmarks/tasks-page/manifest.json',
   ), 'utf8'));
   const scoredItems = [...manifest.checks, ...manifest.requirements];
   assert.equal(scoredItems.reduce((total, item) => total + item.points, 0), 100);
@@ -323,8 +323,8 @@ test('run manager normalizes a finished process before removing its temporary di
   child.stdout = new PassThrough();
   child.stderr = new PassThrough();
   try {
-    mkdirSync(resolve(root, 'scenarios/tasks-page'), { recursive: true });
-    writeFileSync(resolve(root, 'scenarios/tasks-page/prompt.md'), '# Scenario\nBuild it.\n');
+    mkdirSync(resolve(root, 'benchmarks/tasks-page'), { recursive: true });
+    writeFileSync(resolve(root, 'benchmarks/tasks-page/prompt.md'), '# Scenario\nBuild it.\n');
     execFileSync('git', ['init', '--quiet'], { cwd: repo });
     writeFileSync(resolve(repo, 'AGENTS.md'), '# Guidance\n');
     const skill = resolve(repo, '.agents/skills/develop-feature');

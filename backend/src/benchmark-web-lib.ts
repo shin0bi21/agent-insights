@@ -252,7 +252,7 @@ export function createRunManager({ root, spawnProcess = spawn }) {
     if (!ALLOWED_FEATURE_TYPES.includes(input.featureType)) throw new Error('Unsupported feature type.');
     const id = `run-${new Date().toISOString().replaceAll(/[^0-9]/g, '').slice(0, 17)}-${Math.random().toString(36).slice(2, 7)}`;
     const directory = mkdtempSync(resolve(validateRunTemporaryRoot(repo), `repo-automation-score-${id}-`));
-    const scenarioPrompt = readFileSync(resolve(root, 'scenarios/tasks-page/prompt.md'), 'utf8');
+    const scenarioPrompt = readFileSync(resolve(root, 'benchmarks/tasks-page/prompt.md'), 'utf8');
     const prompt = composePrompt({ scenarioPrompt, featureType: input.featureType, description: input.description });
     const promptPath = resolve(directory, 'prompt.md');
     const logPath = resolve(directory, 'runner.log');

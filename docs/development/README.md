@@ -21,7 +21,7 @@ Use this handbook when adding or changing product code. Feature documents explai
 | Change the browser workflow | [Frontend application](frontend/application-workflows.md) |
 | Add or change a reusable overlay | [Frontend interactions](frontend/interactions.md) |
 | Add an agent platform | [Adding a provider](providers/adding-a-provider.md) |
-| Change scoring or scenarios | [Adding or changing an evaluator](evaluators/adding-an-evaluator.md) |
+| Change scoring or benchmark definitions | [Adding or changing an evaluator](evaluators/adding-an-evaluator.md) |
 | Review and ship | [Review and shipping](review-and-shipping.md) |
 
 The source tree remains authoritative for exact filenames. Add documentation when it provides a durable contract, procedure, or ownership map—not merely a second inventory of code.
