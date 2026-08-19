@@ -135,12 +135,11 @@ function addCandidate(run: string, repetition: number, score: number, implemente
   });
 }
 
-test('imports legacy artifacts idempotently and projects a frontend-compatible run report', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'repo-score-persistence-'));
+test('normalizes temporary run evidence into a frontend-compatible SQLite report', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'agent-score-persistence-'));
   const databasePath = join(directory, 'runs.sqlite');
-  const resultsRoot = join(directory, 'results');
   try {
-    const runDirectory = fixture(resultsRoot);
+    const runDirectory = fixture(directory);
     addCandidate(runDirectory, 2, 50, true);
     addCandidate(runDirectory, 3, 50, false);
     writeJson(join(runDirectory, 'plan.json'), {
@@ -153,8 +152,12 @@ test('imports legacy artifacts idempotently and projects a frontend-compatible r
     const database = createDatabase(databasePath);
     try {
       const persistence = createRunPersistence(database);
-      assert.deepEqual(await persistence.importResults({ resultsRoot }), [{ id: 'run-legacy', status: 'completed', imported: true }]);
-      assert.deepEqual(await persistence.importResults({ resultsRoot }), [{ id: 'run-legacy', status: 'running', imported: false }]);
+      assert.deepEqual(await persistence.normalizeTemporaryRun(runDirectory), {
+        id: 'run-legacy', status: 'completed', normalized: true,
+      });
+      assert.deepEqual(await persistence.normalizeTemporaryRun(runDirectory), {
+        id: 'run-legacy', status: 'running', normalized: false,
+      });
       const run = await persistence.getRun('run-legacy');
       assert.equal(run?.repositoryName, 'my-webapp');
       assert.equal(run?.status, 'completed');
@@ -179,8 +182,32 @@ test('imports legacy artifacts idempotently and projects a frontend-compatible r
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });
 
+test('keeps the legacy results importer as an idempotent migration path', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'agent-score-legacy-import-'));
+  const databasePath = join(directory, 'runs.sqlite');
+  const resultsRoot = join(directory, 'results', 'web-runs');
+  try {
+    fixture(resultsRoot);
+    migrate({ path: databasePath });
+    const database = createDatabase(databasePath);
+    try {
+      const persistence = createRunPersistence(database);
+      assert.deepEqual(await persistence.importResults({ resultsRoot }), [
+        { id: 'run-legacy', status: 'completed', imported: true },
+      ]);
+      assert.deepEqual(await persistence.importResults({ resultsRoot }), [
+        { id: 'run-legacy', status: 'running', imported: false },
+      ]);
+    } finally {
+      await closeDatabase(database);
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test('provisional runs do not expose an empty report before evaluation', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'repo-score-persistence-'));
+  const directory = mkdtempSync(join(tmpdir(), 'agent-score-persistence-'));
   const databasePath = join(directory, 'runs.sqlite');
   try {
     migrate({ path: databasePath });
@@ -206,12 +233,11 @@ test('provisional runs do not expose an empty report before evaluation', async (
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });
 
-test('imports an incomplete running artifact as interrupted without a pass', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'repo-score-persistence-'));
+test('normalizes incomplete temporary evidence as interrupted without a pass', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'agent-score-persistence-'));
   const databasePath = join(directory, 'runs.sqlite');
-  const resultsRoot = join(directory, 'results');
   try {
-    const run = join(resultsRoot, 'run-stopped');
+    const run = join(directory, 'run-stopped');
     mkdirSync(run, { recursive: true });
     writeJson(join(run, 'web-run.json'), {
       id: 'run-stopped',
@@ -228,7 +254,7 @@ test('imports an incomplete running artifact as interrupted without a pass', asy
     const database = createDatabase(databasePath);
     try {
       const persistence = createRunPersistence(database);
-      await persistence.importResults({ resultsRoot });
+      await persistence.normalizeTemporaryRun(run);
       const attempt = await database.selectFrom('run_attempts').selectAll().where('run_id', '=', 'run-stopped').executeTakeFirstOrThrow();
       assert.equal(attempt.status, 'interrupted');
       assert.equal(await database.selectFrom('run_passes').select(({ fn }) => fn.countAll<number>().as('count')).executeTakeFirstOrThrow().then(row => row.count), 0);

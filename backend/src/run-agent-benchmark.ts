@@ -29,7 +29,7 @@ Options:
   --reasoning-efforts CSV  Override reasoning levels (for example: low,medium,high).
   --repetitions N       Override repetition count.
   --base-ref REF        Revision shared by every run (default: scenario baseline).
-  --output-dir PATH     Artifact directory (default: results/<timestamp>).
+  --output-dir PATH     Retained diagnostic directory (default: system runtime directory).
   --prompt-file PATH    Override the scenario prompt with a prepared prompt file.
   --feature-type TYPE   Scope evaluation to frontend, backend, or full-stack.
   --timeout-minutes N   Override per-agent timeout.
@@ -332,7 +332,8 @@ async function main() {
   if (!baseRef) throw new Error('A scenario baseRef or --base-ref is required.');
   const baseSha = git(['rev-parse', `${baseRef}^{commit}`], repoRoot);
   if (manifest.guidance) git(['rev-parse', `${manifest.guidance.ref}^{commit}`], repoRoot);
-  const outputRoot = resolve(options.outputDir ?? resolve(HARNESS_ROOT, 'results', `${manifest.id}-${timestamp()}`));
+  const runtimeRoot = process.env.AAS_RUNTIME_PATH ?? process.env.RAS_RUNTIME_PATH ?? tmpdir();
+  const outputRoot = resolve(options.outputDir ?? resolve(runtimeRoot, `${manifest.id}-benchmark-${timestamp()}`));
   const matrix = models.flatMap(model => reasoningEfforts.flatMap(reasoningEffort => (
     Array.from({ length: repetitions }, (_, index) => ({ model, reasoningEffort, repetition: index + 1 }))
   )));

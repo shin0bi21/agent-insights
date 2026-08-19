@@ -40,4 +40,4 @@ npm run db:status
 npm run db:import-results
 ```
 
-The legacy importer is idempotent by run ID. Verify run, pass, prompt, usage, evaluation, and finding counts before deleting legacy input. Database files, WAL files, and generated run data must remain ignored and untracked.
+`db:import-results` is the idempotent, one-time compatibility path for unimported `results/web-runs` history. Verify normalized records before deleting the ignored legacy input. Database and WAL files remain untracked. SQLite is the only durable application store; web-managed raw provider output is removed after successful normalization, while standalone CLI diagnostics remain at their printed path until the operator removes them.

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, isAbsolute, relative, resolve, sep } from 'node:path';
 import type { Kysely } from 'kysely';
 import type { Database } from '../db/database.js';
@@ -32,6 +32,12 @@ const statusValues = new Set([
   'timed-out',
   'interrupted',
 ]);
+
+export interface NormalizedTemporaryRun {
+  id: string;
+  status: string;
+  normalized: boolean;
+}
 
 export interface ImportedRun {
   id: string;
@@ -284,10 +290,10 @@ export function createRunPersistence(database: Kysely<Database>) {
       .execute();
   }
 
-  async function importRun(
+  async function normalizeTemporaryRun(
     directory: string,
     { replaceExisting = false }: { replaceExisting?: boolean } = {},
-  ): Promise<ImportedRun | null> {
+  ): Promise<NormalizedTemporaryRun | null> {
     const webRun = json(resolve(directory, 'web-run.json'));
     if (!webRun?.id) return null;
     const existing = await database
@@ -296,7 +302,7 @@ export function createRunPersistence(database: Kysely<Database>) {
       .where('id', '=', webRun.id)
       .executeTakeFirst();
     if (existing && !replaceExisting) {
-      return { id: webRun.id, status: String(webRun.status ?? 'interrupted'), imported: false };
+      return { id: webRun.id, status: String(webRun.status ?? 'interrupted'), normalized: false };
     }
     const plan = json(resolve(directory, 'plan.json'));
     const comparison = json(resolve(directory, 'comparison.json'));
@@ -477,17 +483,18 @@ export function createRunPersistence(database: Kysely<Database>) {
         }
       }
     });
-    return { id: webRun.id, status, imported: true };
+    return { id: webRun.id, status, normalized: true };
   }
 
   async function importResults({ resultsRoot, runId, replaceExisting = false }: ImportResultsOptions) {
+    if (!existsSync(resultsRoot)) return [];
     const directories = readdirSync(resultsRoot, { withFileTypes: true })
       .filter(entry => entry.isDirectory() && (!runId || entry.name === runId))
       .map(entry => resolve(resultsRoot, entry.name));
     const imported: ImportedRun[] = [];
     for (const directory of directories) {
-      const value = await importRun(directory, { replaceExisting });
-      if (value) imported.push(value);
+      const value = await normalizeTemporaryRun(directory, { replaceExisting });
+      if (value) imported.push({ id: value.id, status: value.status, imported: value.normalized });
     }
     return imported;
   }
@@ -604,5 +611,5 @@ export function createRunPersistence(database: Kysely<Database>) {
     return (await Promise.all(ids.map(row => getRun(row.id)))).filter(Boolean);
   }
 
-  return { createRun, updateRunStatus, importResults, importRun, getRun, listRuns };
+  return { createRun, updateRunStatus, normalizeTemporaryRun, importResults, getRun, listRuns };
 }
