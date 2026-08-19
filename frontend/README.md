@@ -1,6 +1,6 @@
 # Agent Automation Score frontend
 
-React + TypeScript + Vite browser interface for repository setup, run progress, history, settings, and reports.
+React + TypeScript + Vite browser interface for repository setup, session connections, run progress, history, settings, and reports.
 
 ## Documentation
 
@@ -43,6 +43,6 @@ App orchestration → page → product components → common primitives
 - `src/styles.css` is the minimal Tailwind entry point. Do not add component stylesheets or
   authored selectors; put utilities on the element that owns the presentation.
 
-The browser never accesses repositories, credentials, Git, subprocesses, or SQLite directly. It polls normalized run state from the API and keeps only transient interaction state locally.
+The browser never accesses repositories, credentials, Git, subprocesses, or SQLite directly. It polls normalized run and session state from the API and keeps only transient interaction state locally.
 
 Run `npm run test:web`, `npm run web:check`, and `npm run web:build` after frontend changes.

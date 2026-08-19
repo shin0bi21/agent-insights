@@ -51,6 +51,48 @@ export interface StoredCodexSession {
   revision: string | null;
 }
 
+export interface LiveSessionSnapshot {
+  externalId: string;
+  title: string;
+  repositoryName: string | null;
+  status: string;
+  observedAt: string;
+  contextWindow: number | null;
+  contextTokens: number;
+  contextPercent: number | null;
+  turnCount: number;
+  completedTurnCount: number;
+  evidence: Record<string, number>;
+  guidance: {
+    available: boolean;
+    agentsReads: number;
+    skillReads: number;
+    skillsUsed: string[];
+    promptCount: number;
+    promptsWithSkillRead: number;
+    averageSkillReadLatencyMs: number | null;
+    currentPromptHasSkillRead: boolean | null;
+  };
+  workers: LiveWorkerTokenUsage[];
+}
+
+export interface LiveWorkerTokenUsage {
+  externalThreadId: string;
+  parentExternalThreadId: string | null;
+  nickname: string | null;
+  role: string | null;
+  model: string | null;
+  reasoningLevel: string | null;
+  inputTokens: number;
+  cachedInputTokens: number;
+  cacheWriteInputTokens: number;
+  outputTokens: number;
+  reasoningOutputTokens: number;
+  totalTokens: number;
+  active: boolean;
+  updatedAt: string;
+}
+
 export interface SessionReview {
   id: string;
   title: string | null;

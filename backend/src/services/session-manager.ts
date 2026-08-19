@@ -5,14 +5,15 @@ import { databasePath } from '../db/config.js';
 import type { Database, SessionStatus } from '../db/database.js';
 import { migrate } from '../db/migrator.js';
 import { listCodexStoredSessions, readCodexStoredSession } from './codex-session-source.js';
+import { readCodexWorkerUsage } from './codex-local-session-store.js';
 
 export type SessionWorkerUsage = {
   externalThreadId: string;
   parentExternalThreadId: string | null;
   nickname: string | null;
   role: string | null;
-  model: string;
-  reasoningLevel: string;
+  model: string | null;
+  reasoningLevel: string | null;
   inputTokens: number;
   cachedInputTokens: number;
   cacheWriteInputTokens: number;
@@ -86,7 +87,7 @@ async function review(database: Kysely<Database>, id: string) {
 export function createSessionManager({
   root,
   database,
-  source = { list: listCodexStoredSessions, read: readCodexStoredSession },
+  source = { list: listCodexStoredSessions, read: readCodexStoredSession, workers: readCodexWorkerUsage },
 }: { root: string; database?: Kysely<Database>; source?: Source }) {
   const path = databasePath(root);
   if (!database) migrate({ path });

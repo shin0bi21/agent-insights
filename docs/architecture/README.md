@@ -1,6 +1,6 @@
 # Architecture
 
-Agent Automation Score is a local-first React application backed by an Express API and SQLite. The browser owns configuration and report presentation; the loopback service owns repository access, agent execution, isolated worktrees, evaluation, and persistence.
+Agent Automation Score is a local-first React application backed by an Express API and SQLite. The browser owns configuration and report presentation; the loopback service owns repository access, session sources, agent execution, isolated worktrees, evaluation, and persistence.
 
 ```text
 Browser / React
