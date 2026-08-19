@@ -14,6 +14,7 @@ interface HistoryProps {
   retryDisabled: boolean;
   onRefresh: () => void;
   onRetry: (run: RunRecord) => void;
+  onBack: () => void;
 }
 
 export default function History({
@@ -22,6 +23,7 @@ export default function History({
   retryDisabled,
   onRefresh,
   onRetry,
+  onBack,
 }: HistoryProps) {
   return (
     <section className="mx-auto max-w-[1000px]" aria-labelledby="history-title">
@@ -35,9 +37,10 @@ export default function History({
             Review every run, including the latest and any interrupted attempts.
           </p>
         </div>
-        <button className={quietButtonClass} onClick={onRefresh} type="button">
-          Refresh history
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button className={quietButtonClass} onClick={onBack} type="button">← Back to Benchmark Lab</button>
+          <button className={quietButtonClass} onClick={onRefresh} type="button">Refresh history</button>
+        </div>
       </div>
       <section className={panelClass}>
         <div className="px-7 pt-[18px] pb-7 max-[560px]:px-[18px]" aria-live="polite">

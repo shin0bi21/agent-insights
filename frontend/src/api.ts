@@ -4,6 +4,7 @@ import type {
   RuntimeCapabilities,
   SessionSourceProbe,
   SessionReview,
+  LiveSessionSnapshot,
   StoredCodexSession,
   RunRecord,
   StartRunInput,
@@ -30,6 +31,9 @@ export const api = {
     { method: 'POST', body: '{}' },
   ),
   storedCodexSessions: () => request<StoredCodexSession[]>('/api/session-sources/codex/sessions'),
+  liveCodexSession: (externalSessionId: string) => request<LiveSessionSnapshot>(
+    `/api/session-sources/codex/sessions/${encodeURIComponent(externalSessionId)}/live`,
+  ),
   sessions: () => request<SessionReview[]>('/api/sessions'),
   importCodexSession: (externalSessionId: string) => request<SessionReview>(
     '/api/sessions/import',

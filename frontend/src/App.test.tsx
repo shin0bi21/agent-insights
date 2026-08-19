@@ -24,6 +24,7 @@ vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
 
 test('renders the typed run configuration and provider catalog', async () => {
   render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Benchmark Lab' }));
   expect(screen.getByRole('heading', { name: 'Agent Automation Score' })).toBeInTheDocument();
   expect(screen.getByLabelText('Local repository path')).toBeInTheDocument();
   await waitFor(() => expect(screen.getByLabelText('Local repository path')).toHaveValue('/mounted/example'));
@@ -35,8 +36,21 @@ test('renders the typed run configuration and provider catalog', async () => {
   expect(screen.getByText(/Folder browsing is unavailable/)).toBeInTheDocument();
 });
 
+test('offers session review and benchmark workflows from the homepage', () => {
+  render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Benchmark Lab' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Home' }));
+  expect(screen.getByRole('button', { name: /Watch and review agent work/ })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Run a controlled sandbox/ })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Live Session' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Watch and review agent work/ }));
+  expect(screen.getByRole('heading', { name: 'Session Review' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Watch work in progress' })).toBeInTheDocument();
+});
+
 test('shows repository readiness inside the repository section', async () => {
   render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Benchmark Lab' }));
   fireEvent.change(screen.getByLabelText('Local repository path'), { target: { value: '/tmp/example' } });
   fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
   const repository = screen.getByRole('group', { name: 'Repository' });
@@ -52,6 +66,7 @@ test('marks the repository step as invalid when agent guidance is missing', asyn
     return { ok: false, json: async () => ({ error: 'Repository is not automation-ready: AGENTS.md is required.' }) } as Response;
   });
   render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Benchmark Lab' }));
   fireEvent.change(screen.getByLabelText('Local repository path'), { target: { value: '/tmp/unguided' } });
   fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
   const repository = screen.getByRole('group', { name: 'Repository' });
@@ -82,6 +97,7 @@ test('summarizes benchmark activity without Codex state noise', () => {
 
 test('persists the selected appearance from Settings', () => {
   render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Benchmark Lab' }));
   fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
   fireEvent.click(screen.getByRole('radio', { name: /Dark/ }));
   expect(document.documentElement).toHaveAttribute('data-theme', 'dark');
@@ -91,12 +107,14 @@ test('persists the selected appearance from Settings', () => {
 test('migrates the legacy theme preference to the renamed product key', () => {
   localStorage.setItem('repo-score-theme', 'dark');
   render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Benchmark Lab' }));
+
   expect(document.documentElement).toHaveAttribute('data-theme', 'dark');
   expect(localStorage.getItem('agent-automation-score-theme')).toBe('dark');
   expect(localStorage.getItem('repo-score-theme')).toBeNull();
 });
 
-test('shows only the latest run on Home and every run in History', async () => {
+test('shows only the latest run in Benchmark Lab and every run in Benchmark History', async () => {
   vi.mocked(fetch).mockImplementation(async input => {
     const path = String(input);
     const value = path.endsWith('/api/providers')
@@ -151,6 +169,7 @@ test('shows only the latest run on Home and every run in History', async () => {
   });
 
   render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Benchmark Lab' }));
   expect(await screen.findByText('Frontend request')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Run in progress' })).toBeDisabled();
   expect(screen.queryByText('Agent run started.')).not.toBeInTheDocument();
@@ -160,7 +179,7 @@ test('shows only the latest run on Home and every run in History', async () => {
   expect(screen.getByRole('dialog', { name: 'Feature request' })).toHaveTextContent('Active feature');
   fireEvent.keyDown(document, { key: 'Escape' });
   expect(screen.queryByText('Finished feature')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'History' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Benchmark History' }));
   expect(screen.getByRole('heading', { name: 'Run history' })).toBeInTheDocument();
   expect(screen.getByText('Frontend request')).toBeInTheDocument();
   expect(screen.getByText('Full-stack request')).toBeInTheDocument();
@@ -170,7 +189,9 @@ test('shows only the latest run on Home and every run in History', async () => {
   expect(screen.getByText('interrupted')).toBeInTheDocument();
   expect(screen.queryByText('Finished feature')).not.toBeInTheDocument();
   expect(screen.queryByText('Active feature')).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'History' })).toHaveAttribute('aria-current', 'page');
+  expect(screen.getByRole('button', { name: 'Benchmark Lab' })).toHaveAttribute('aria-current', 'page');
+  fireEvent.click(screen.getByRole('button', { name: /Back to Benchmark Lab/ }));
+  expect(screen.getByRole('heading', { name: 'Is your repo ready for automated workflows?' })).toBeInTheDocument();
 });
 
 test('keeps start and retry disabled when any historical record is still running', async () => {
@@ -204,6 +225,7 @@ test('keeps start and retry disabled when any historical record is still running
     return { ok: true, json: async () => [] } as Response;
   });
   render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Benchmark Lab' }));
   expect(await screen.findByText('completed')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Run in progress' })).toBeDisabled();
 });
@@ -232,6 +254,7 @@ test('retries an interrupted run with its recorded configuration', async () => {
     return { ok: true, json: async () => [] } as Response;
   });
   render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Benchmark Lab' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Retry Run' }));
   await waitFor(() => expect(fetch).toHaveBeenCalledWith(
     '/api/runs',
@@ -272,6 +295,7 @@ test('requires the matching repository to be reconnected for a durable historica
     return { ok: true, json: async () => [] } as Response;
   });
   render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Benchmark Lab' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Retry Run' }));
   expect(await screen.findByText('Reconnect my-webapp before retrying this run.')).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Local repository path'), { target: { value: '/tmp/my-webapp' } });
@@ -303,6 +327,7 @@ test('does not retry durable history against a different connected repository', 
     return { ok: true, json: async () => [] } as Response;
   });
   render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Benchmark Lab' }));
   fireEvent.change(screen.getByLabelText('Local repository path'), { target: { value: '/tmp/other-repo' } });
   fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
   await screen.findByText(/Repository ready/);
@@ -339,6 +364,7 @@ test('does not let an older refresh overwrite a newly retried run', async () => 
     return { ok: true, json: async () => [] } as Response;
   });
   render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Benchmark Lab' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Refresh' }));
   fireEvent.click(screen.getByRole('button', { name: 'Retry Run' }));
   expect(await screen.findByText('Run in progress')).toBeInTheDocument();
@@ -383,6 +409,7 @@ test('keeps completed cards compact and marks them successful', async () => {
     return { ok: true, json: async () => [] } as Response;
   });
   render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Benchmark Lab' }));
   expect(await screen.findByText('completed')).toBeVisible();
   expect(screen.queryByRole('button', { name: 'View Job Configuration' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'View Report' })).toBeInTheDocument();

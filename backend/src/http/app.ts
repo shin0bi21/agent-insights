@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import { chooseRepositoryDirectory, createRunManager, providerCatalog, validateAutomationGuidance } from '../benchmark-web-lib.js';
 import { probeCodexSessionSource } from '../services/codex-session-source.js';
+import { readCodexLiveSession } from '../services/codex-local-session-store.js';
 import { createSessionManager } from '../services/session-manager.js';
 
 type RunManager = {
@@ -24,6 +25,7 @@ export type CreateBenchmarkAppOptions = {
   repositoryPath?: string | null;
   probeSessions?: typeof probeCodexSessionSource;
   sessionManager?: SessionManager;
+  readLiveSession?: typeof readCodexLiveSession;
 };
 
 function errorMessage(error: unknown) {
@@ -50,6 +52,7 @@ export function createBenchmarkApp(options: CreateBenchmarkAppOptions): Express 
   const probeSessions = options.probeSessions ?? probeCodexSessionSource;
   let sessions = options.sessionManager;
   const getSessions = () => sessions ??= createSessionManager({ root });
+  const liveSession = options.readLiveSession ?? readCodexLiveSession;
   const app = express();
 
   app.disable('x-powered-by');
@@ -77,6 +80,10 @@ export function createBenchmarkApp(options: CreateBenchmarkAppOptions): Express 
 
   app.get('/api/session-sources/codex/sessions', async (_request, response) => {
     response.set('cache-control', 'no-store').json(await getSessions().listSourceSessions());
+  });
+
+  app.get('/api/session-sources/codex/sessions/:id/live', async (request, response) => {
+    response.set('cache-control', 'no-store').json(await liveSession(request.params.id));
   });
 
   app.get('/api/sessions', async (_request, response) => {

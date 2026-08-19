@@ -24,6 +24,7 @@ interface HomeProps {
   onSubmit: () => void;
   onRefresh: () => void;
   onRetry: (run: RunRecord) => void;
+  onViewHistory: () => void;
 }
 
 export default function Home(props: HomeProps) {
@@ -52,7 +53,7 @@ export default function Home(props: HomeProps) {
 
   return (
     <>
-      <section className="mb-12" aria-labelledby="hero-title">
+      <section className="mb-12 flex items-end justify-between gap-6 max-[850px]:items-start" aria-labelledby="hero-title">
         <div>
           <h1 className={`${eyebrowClass} mb-[18px]`}>Agent Automation Score</h1>
           <h2
@@ -66,6 +67,7 @@ export default function Home(props: HomeProps) {
             execution evidence from your chosen agent platform.
           </p>
         </div>
+        <button className="shrink-0 rounded-lg border border-[#c8c1df] bg-white px-4 py-3 text-sm font-bold text-[#573dbf] dark:border-[#4d455e] dark:bg-[#1b1921] dark:text-[#b9a6ff]" onClick={props.onViewHistory} type="button">Benchmark History</button>
       </section>
       <div
         className="grid grid-cols-[minmax(0,1.2fr)_minmax(340px,.8fr)] items-start gap-6 max-[850px]:grid-cols-1"

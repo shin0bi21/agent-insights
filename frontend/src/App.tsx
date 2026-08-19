@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api';
 import History from './pages/History/History';
 import Home from './pages/Home/Home';
+import Landing from './pages/Landing/Landing';
 import Settings, { type Theme } from './pages/Settings/Settings';
+import Sessions from './pages/Sessions/Sessions';
 import type { AgentProvider, RunRecord, StartRunInput } from './types';
 
 const emptyRun: StartRunInput = {
@@ -13,9 +15,9 @@ const emptyRun: StartRunInput = {
   featureType: 'full-stack',
   description: '',
 };
-type View = 'home' | 'history' | 'settings';
 const themeStorageKey = 'agent-automation-score-theme';
 const legacyThemeStorageKey = 'repo-score-theme';
+type View = 'home' | 'benchmark' | 'history' | 'sessions' | 'settings';
 type RepositoryTone = 'idle' | 'checking' | 'ready' | 'error';
 
 interface NavigationButtonProps {
@@ -55,7 +57,9 @@ function repositoryName(repo: string) {
 export default function App() {
   const [view, setView] = useState<View>('home');
   const [theme, setTheme] = useState<Theme>(() =>
-    (localStorage.getItem(themeStorageKey) ?? localStorage.getItem(legacyThemeStorageKey)) === 'dark' ? 'dark' : 'light',
+    (localStorage.getItem(themeStorageKey) ?? localStorage.getItem(legacyThemeStorageKey)) === 'dark'
+      ? 'dark'
+      : 'light',
   );
   const [input, setInput] = useState(emptyRun);
   const [providers, setProviders] = useState<AgentProvider[]>([]);
@@ -201,7 +205,7 @@ export default function App() {
       runLoadRevision.current += 1;
       setInput(retryInput);
       setRuns(current => [attempt, ...current.filter(item => item.id !== attempt.id)]);
-      setView('home');
+      setView('benchmark');
     } catch (error) {
       setMessage((error as Error).message);
     } finally {
@@ -226,10 +230,16 @@ export default function App() {
             Home
           </NavigationButton>
           <NavigationButton
-            active={view === 'history'}
-            onClick={() => setView('history')}
+            active={view === 'sessions'}
+            onClick={() => setView('sessions')}
           >
-            History
+            Session Review
+          </NavigationButton>
+          <NavigationButton
+            active={view === 'benchmark' || view === 'history'}
+            onClick={() => setView('benchmark')}
+          >
+            Benchmark Lab
           </NavigationButton>
           <NavigationButton
             active={view === 'settings'}
@@ -243,7 +253,8 @@ export default function App() {
         id="main"
         className="mx-auto w-[min(1400px,90vw)] py-16 max-[850px]:w-[min(92vw,680px)] max-[850px]:pt-10"
       >
-        {view === 'home' && (
+        {view === 'home' && <Landing onNavigate={setView} />}
+        {view === 'benchmark' && (
           <Home
             input={input}
             providers={providers}
@@ -266,6 +277,7 @@ export default function App() {
             onSubmit={() => void submit()}
             onRefresh={() => void loadRuns()}
             onRetry={run => void retry(run)}
+            onViewHistory={() => setView('history')}
           />
         )}
         {view === 'history' && (
@@ -275,11 +287,13 @@ export default function App() {
             retryDisabled={busy || runInProgress}
             onRefresh={() => void loadRuns()}
             onRetry={run => void retry(run)}
+            onBack={() => setView('benchmark')}
           />
         )}
         {view === 'settings' && (
           <Settings theme={theme} onThemeChange={setTheme} />
         )}
+        {view === 'sessions' && <Sessions />}
       </main>
     </div>
   );

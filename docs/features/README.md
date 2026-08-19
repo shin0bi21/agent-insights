@@ -6,6 +6,7 @@ Feature documents describe current user-visible behavior across the browser, loc
 |---|---|
 | Attach and validate a repository | [Repository connection](repository-connection.md) |
 | Configure, execute, retry, and inspect work | [Benchmark runs](benchmark-runs.md) |
+| Observe active and completed agent work without rerunning it | [Session monitoring](session-monitoring.md) |
 | Measure automation guidance and execution suitability | [Automation readiness](automation-readiness.md) |
 | Explain scores, usage, implementation evidence, and recommendations | [Comparison reports](comparison-reports.md) |
 

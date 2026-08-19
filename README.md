@@ -1,6 +1,6 @@
 # Agent Automation Score
 
-Local-first application for measuring how efficiently agentic platforms execute and verify workflows.
+Local-first application for measuring how efficiently agentic platforms execute and verify workflows. Observe real sessions without rerunning them, or use isolated repository benchmarks for controlled A/B testing.
 
 ## Stack
 
