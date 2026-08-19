@@ -1,4 +1,4 @@
-# Scenarios
+# Benchmark definitions
 
 Scenarios are versioned executable experiments, not product documentation. Each scenario owns its prompt, pinned target and guidance revisions, model matrix defaults, evaluator checks, structural requirements, and timeouts.
 

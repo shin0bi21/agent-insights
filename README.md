@@ -23,4 +23,4 @@ Local-first application for measuring how reliably agentic coding platforms can 
 | Backend and API | [backend/README.md](backend/README.md) |
 | Development handbook | [docs/development/README.md](docs/development/README.md) |
 | Setup and operations | [docs/operations/README.md](docs/operations/README.md) |
-| Benchmark scenarios | [scenarios/README.md](scenarios/README.md) |
+| Benchmark definitions | [benchmarks/README.md](benchmarks/README.md) |

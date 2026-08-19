@@ -35,7 +35,7 @@ COPY --from=production-dependencies /app/node_modules ./node_modules
 COPY --from=build /app/backend/dist ./backend/dist
 COPY --from=build /app/frontend/dist ./frontend/dist
 COPY backend/db/migrations ./backend/db/migrations
-COPY scenarios ./scenarios
+COPY benchmarks ./benchmarks
 
 RUN mkdir -p /data /root/.codex
 

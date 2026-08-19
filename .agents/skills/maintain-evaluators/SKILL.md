@@ -1,6 +1,6 @@
 ---
 name: maintain-evaluators
-description: Add, change, calibrate, or review benchmark scenarios, evaluator checks, scoring weights, automation-readiness measures, reference comparisons, templates, evidence, and generated reports. Use for changes under scenarios, grading and comparison code, score methodology, framework templates, report recommendations, or benchmark fairness and reproducibility.
+description: Add, change, calibrate, or review benchmark scenarios, evaluator checks, scoring weights, automation-readiness measures, reference comparisons, templates, evidence, and generated reports. Use for changes under benchmarks, grading and comparison code, score methodology, framework templates, report recommendations, or benchmark fairness and reproducibility.
 ---
 
 # Maintain Evaluators

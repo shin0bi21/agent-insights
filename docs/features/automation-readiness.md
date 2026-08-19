@@ -8,7 +8,7 @@ Optional templates add domain expectations such as React/Vite UI composition, fu
 
 ## Implementation ownership
 
-- Scenario and evaluator configuration: `scenarios/`
+- Benchmark and evaluator configuration: `benchmarks/`
 - Structural grading: `backend/src/grade-agent-benchmark.ts`
 - Execution evidence: `backend/src/run-agent-benchmark.ts`
 - Durable findings: `backend/src/services/run-persistence.ts`

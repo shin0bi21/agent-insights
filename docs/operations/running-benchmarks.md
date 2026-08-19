@@ -31,4 +31,4 @@ The current `tasks-page` scenario is pinned to historical and guidance revisions
 - Do not infer reliability from one high score. Report sample size, score spread, gate failures, duration, and usage.
 - Do not run a full matrix merely to verify code wiring; use fake providers, tests, and dry runs first.
 
-Successful web runs normalize durable evidence into SQLite and remove temporary files. See [`scenarios/README.md`](../../scenarios/README.md) for scenario ownership.
+Successful web runs normalize durable evidence into SQLite and remove temporary files. See [`benchmarks/README.md`](../../benchmarks/README.md) for benchmark-definition ownership.
