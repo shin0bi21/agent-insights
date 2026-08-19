@@ -33,6 +33,74 @@ export interface RuntimeCapabilities {
   repositoryPath: string | null;
 }
 
+export interface SessionSourceProbe {
+  connected: true;
+  loadedThreadIds: string[];
+  storedThreadAvailable: boolean;
+}
+
+export interface StoredCodexSession {
+  externalId: string;
+  title: string;
+  repositoryName: string | null;
+  source: string;
+  status: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+  branch: string | null;
+  revision: string | null;
+}
+
+export interface SessionReview {
+  id: string;
+  title: string | null;
+  status: string;
+  telemetryLevel: 'full' | 'imported' | 'partial';
+  observedSequence: number;
+  durableSequence: number;
+  startedAt: string | null;
+  completedAt: string | null;
+  turnCount: number;
+  eventCount: number;
+  checkCount: number;
+  changedFileEventCount: number;
+  inputTokens: number | null;
+  cachedInputTokens: number | null;
+  outputTokens: number | null;
+  platform: string;
+  externalSessionId: string;
+  repositoryName: string | null;
+  evidence: Record<string, number>;
+  usageAvailable: boolean;
+  workerUsage: WorkerTokenUsage[];
+  modelUsage: ModelTokenUsage[];
+}
+
+export interface WorkerTokenUsage {
+  id: string;
+  name: string | null;
+  role: string;
+  model: string | null;
+  reasoningLevel: string | null;
+  inputTokens: number | null;
+  cachedInputTokens: number | null;
+  cacheWriteInputTokens: number | null;
+  outputTokens: number | null;
+  reasoningOutputTokens: number | null;
+  totalTokens: number;
+}
+
+export interface ModelTokenUsage {
+  model: string;
+  workerCount: number;
+  inputTokens: number;
+  cachedInputTokens: number;
+  cacheWriteInputTokens: number;
+  outputTokens: number;
+  reasoningOutputTokens: number;
+  totalTokens: number;
+}
+
 export interface ComparisonRow {
   medianScore: number | null;
   medianDurationMs: number | null;

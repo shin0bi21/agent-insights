@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { api } from '../../api';
 import {
   eyebrowClass,
   mutedTextClass,
@@ -25,6 +27,25 @@ const themeOptionClass = `
 `;
 
 export default function Settings({ theme, onThemeChange }: SettingsProps) {
+  const [checkingSessions, setCheckingSessions] = useState(false);
+  const [sessionMessage, setSessionMessage] = useState('');
+
+  async function checkSessionConnection() {
+    setCheckingSessions(true);
+    setSessionMessage('Connecting to Codex App Server…');
+    try {
+      const result = await api.probeSessionSource();
+      const history = result.storedThreadAvailable
+        ? 'Stored sessions are available.'
+        : 'No stored session was found.';
+      setSessionMessage(`Connected to Codex App Server. ${history}`);
+    } catch (error) {
+      setSessionMessage((error as Error).message);
+    } finally {
+      setCheckingSessions(false);
+    }
+  }
+
   return (
     <section className="mx-auto max-w-[1000px]" aria-labelledby="settings-title">
       <div className="mb-8 flex items-end justify-between gap-8 max-[850px]:flex-col max-[850px]:items-start">
@@ -87,6 +108,29 @@ export default function Settings({ theme, onThemeChange }: SettingsProps) {
             </button>
           ))}
         </div>
+      </section>
+      <section className={`${panelClass} mt-6 p-7 max-[560px]:px-[18px]`}>
+        <div className="flex items-start justify-between gap-6 max-[560px]:flex-col">
+          <div>
+            <h3>Session source</h3>
+            <p className={`mt-2 ${mutedTextClass}`}>
+              Verify that this machine can read Codex session metadata. This check does not start an agent turn or consume model tokens.
+            </p>
+          </div>
+          <button
+            className="shrink-0 rounded-lg bg-[#6f56d9] px-4 py-3 text-sm font-semibold text-white disabled:cursor-wait disabled:opacity-60 dark:bg-[#a58cff] dark:text-[#17131f]"
+            disabled={checkingSessions}
+            onClick={() => void checkSessionConnection()}
+            type="button"
+          >
+            {checkingSessions ? 'Checking…' : 'Check Connection'}
+          </button>
+        </div>
+        {sessionMessage && (
+          <p className="mt-4 text-sm" role="status">
+            {sessionMessage}
+          </p>
+        )}
       </section>
     </section>
   );

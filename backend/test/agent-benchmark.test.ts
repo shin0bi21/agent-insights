@@ -7,6 +7,7 @@ import { PassThrough } from 'node:stream';
 import test from 'node:test';
 import { resolve } from 'node:path';
 import { buildImplementationReview, gradeStructure } from '../src/grade-agent-benchmark.js';
+import { normalizeCodexNotification, normalizeCodexThread } from '../src/services/codex-session-source.js';
 import { parseJsonLines, spawnWithCapture, summarizeEvents } from '../src/agent-benchmark-lib.js';
 import { codexArguments, comparison, dockerComposeIsolationOverride, parseArguments } from '../src/run-agent-benchmark.js';
 import {
@@ -92,6 +93,28 @@ test('parses JSONL and totals usage without losing the final message', () => {
     finalMessage: 'done',
     failed: false,
     usage: { inputTokens: 10, cachedInputTokens: 4, outputTokens: 3, reasoningOutputTokens: 2 },
+  });
+});
+
+test('normalizes observable Codex session events without exposing reasoning payloads', () => {
+  assert.deepEqual(
+    normalizeCodexNotification({
+      method: 'thread/tokenUsage/updated',
+      params: { inputTokens: 10, cachedInputTokens: 8 },
+    }),
+    { type: 'thread/tokenUsage/updated' },
+  );
+  assert.equal(
+    normalizeCodexNotification({ method: 'item/reasoning/delta', params: { delta: 'private' } }),
+    null,
+  );
+  assert.deepEqual(normalizeCodexThread({
+    id: 'thread-12345678', name: 'Private prompt-derived title', cwd: '/private/example/my-app',
+    status: { type: 'notLoaded' }, createdAt: 1_776_528_000,
+  }), {
+    externalId: 'thread-12345678', title: 'Codex session thread-1', repositoryName: 'my-app',
+    source: 'unknown', status: 'notLoaded', createdAt: '2026-04-18T16:00:00.000Z', updatedAt: null,
+    branch: null, revision: null,
   });
 });
 

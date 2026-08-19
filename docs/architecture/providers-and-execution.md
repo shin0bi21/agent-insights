@@ -4,6 +4,8 @@ Repository discovery, prompt composition, run state, evidence, comparisons, and 
 
 Codex is the first provider. Sol, Luna, and Terra are models exposed by that provider; they are not product-level run types.
 
+Session sources are related but distinct from benchmark providers. They observe existing platform sessions and normalize supported telemetry without starting an agent turn. A connection or availability probe must never spend model tokens.
+
 ## Run lifecycle
 
 ```text
