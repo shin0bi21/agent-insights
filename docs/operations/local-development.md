@@ -28,7 +28,7 @@ npm run db:status
 npm run db:import-results
 ```
 
-`db:import-results` is a one-time idempotent upgrade path for installations with legacy `results/web-runs`. Verify imported run/pass counts and report projections before deleting source data. New installations default to `data/agent-automation-score.sqlite`; renamed installations reuse the previous database when present. Override it with `AGENT_AUTOMATION_SCORE_DB_PATH`; `REPO_AUTOMATION_SCORE_DB_PATH` remains a deprecated alias.
+SQLite is the only durable run store. `db:import-results` remains a one-time upgrade path for installations with unimported `results/web-runs`; verify the normalized data before removing the ignored source directory. New installations default to `data/agent-automation-score.sqlite`; a renamed installation reuses the previous database when present. Override it with `AGENT_AUTOMATION_SCORE_DB_PATH` for tests or packaging. Web-managed runner output is removed after successful normalization. Standalone CLI diagnostics remain at the printed path until explicitly removed.
 
 ## Run execution
 

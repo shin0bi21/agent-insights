@@ -309,7 +309,7 @@ export function createRunManager({ root, spawnProcess = spawn }) {
       active.set(id, { status, exitCode, child: null, directory, repo });
       writeJson(resolve(directory, 'web-run.json'), { ...config, status, exitCode });
       try {
-        await persistence.importRun(directory, { replaceExisting: true });
+        await persistence.normalizeTemporaryRun(directory, { replaceExisting: true });
         active.delete(id);
         rmSync(directory, { recursive: true, force: true });
       } catch (error) {

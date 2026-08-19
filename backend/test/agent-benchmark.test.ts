@@ -281,7 +281,7 @@ test('keeps local run artifacts and databases outside version control', () => {
 test('run manager uses the local database instead of treating artifact folders as durable records', async () => {
   const root = mkdtempSync(resolve(tmpdir(), 'agent-score-runs-'));
   try {
-    const runDirectory = resolve(root, 'results/web-runs/run-example');
+    const runDirectory = resolve(root, 'temporary-run-evidence/run-example');
     const candidateDirectory = resolve(runDirectory, 'provider-model-run-1');
     mkdirSync(candidateDirectory, { recursive: true });
     writeFileSync(resolve(runDirectory, 'web-run.json'), JSON.stringify({ id: 'run-example', createdAt: '2026-01-01T00:00:00.000Z', status: 'running' }));
