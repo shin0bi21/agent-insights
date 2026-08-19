@@ -204,6 +204,151 @@ export interface RunSummaryView {
   changed_file_count: number;
 }
 
+export type SessionStatus = 'active' | 'idle' | 'completed' | 'failed' | 'interrupted';
+export type TelemetryLevel = 'full' | 'imported' | 'partial';
+export type UsageMeasurement = 'exact-live' | 'exact-stored' | 'derived' | 'unavailable';
+
+export interface SessionsTable {
+  id: string;
+  title: string | null;
+  status: SessionStatus;
+  telemetry_level: TelemetryLevel;
+  observed_sequence: number;
+  durable_sequence: number;
+  created_at: string;
+  started_at: string | null;
+  last_observed_at: string | null;
+  last_persisted_at: string | null;
+  completed_at: string | null;
+  updated_at: string;
+}
+
+export interface SessionSourcesTable {
+  id: string;
+  session_id: string;
+  platform: string;
+  external_session_id: string;
+  source_kind: 'cli' | 'ide' | 'desktop' | 'cloud' | 'imported' | 'unknown';
+  adapter_version: string;
+  sync_status: 'connected' | 'syncing' | 'synced' | 'error' | 'disconnected';
+  sync_cursor: string | null;
+  last_synced_at: string | null;
+  sync_error: string | null;
+}
+
+export interface SessionRepositoriesTable {
+  session_id: string;
+  repository_name: string;
+  base_revision: string | null;
+  final_revision: string | null;
+  guidance_revision: string | null;
+  working_tree_dirty: SqliteBoolean | null;
+  attached_at: string;
+}
+
+export interface SessionThreadsTable {
+  id: string;
+  session_id: string;
+  external_thread_id: string;
+  parent_thread_id: string | null;
+  role: 'orchestrator' | 'implementer' | 'researcher' | 'tester' | 'reviewer' | 'other';
+  status: 'active' | 'idle' | 'completed' | 'failed' | 'interrupted' | 'unknown';
+  started_at: string | null;
+  completed_at: string | null;
+  display_name: string | null;
+}
+
+export interface SessionTurnsTable {
+  id: string;
+  thread_id: string;
+  external_turn_id: string;
+  sequence_number: number;
+  provider: string | null;
+  model: string | null;
+  reasoning_level: string | null;
+  status: 'active' | 'completed' | 'failed' | 'interrupted' | 'unknown';
+  started_at: string | null;
+  completed_at: string | null;
+  duration_ms: number | null;
+}
+
+export interface TurnUsageSnapshotsTable {
+  id: string;
+  turn_id: string;
+  source_event_key: string;
+  measurement: UsageMeasurement;
+  input_tokens: number | null;
+  cached_input_tokens: number | null;
+  cache_write_input_tokens: number | null;
+  output_tokens: number | null;
+  reasoning_output_tokens: number | null;
+  observed_at: string;
+}
+
+export interface SessionEventsTable {
+  id: string;
+  session_id: string;
+  thread_id: string | null;
+  turn_id: string | null;
+  sequence_number: number;
+  source_event_key: string;
+  event_type: string;
+  status: string | null;
+  occurred_at: string;
+  summary: string | null;
+  evidence_json: string | null;
+}
+
+export interface SessionChecksTable {
+  id: string;
+  session_id: string;
+  turn_id: string | null;
+  source_event_key: string;
+  check_type: 'build' | 'typecheck' | 'unit-tests' | 'integration-tests' | 'static-analysis' | 'pattern-check' | 'other';
+  command_label: string | null;
+  status: 'queued' | 'running' | 'passed' | 'failed' | 'skipped' | 'unknown';
+  duration_ms: number | null;
+  tests_passed: number | null;
+  tests_failed: number | null;
+  tests_skipped: number | null;
+  occurred_at: string;
+  summary: string | null;
+}
+
+export interface SessionChangesTable {
+  id: string;
+  session_id: string;
+  turn_id: string | null;
+  source_event_key: string;
+  file_path: string;
+  previous_file_path: string | null;
+  change_type: 'added' | 'updated' | 'deleted' | 'renamed';
+  lines_added: number | null;
+  lines_removed: number | null;
+  occurred_at: string;
+}
+
+export interface SessionSummaryView {
+  session_id: string;
+  status: SessionStatus;
+  telemetry_level: TelemetryLevel;
+  observed_sequence: number;
+  durable_sequence: number;
+  started_at: string | null;
+  last_observed_at: string | null;
+  last_persisted_at: string | null;
+  completed_at: string | null;
+  thread_count: number;
+  turn_count: number;
+  event_count: number;
+  check_count: number;
+  changed_file_event_count: number;
+  input_tokens: number | null;
+  cached_input_tokens: number | null;
+  output_tokens: number | null;
+  reasoning_output_tokens: number | null;
+}
+
 export interface Database {
   schema_migrations: SchemaMigrationsTable;
   runs: RunsTable;
@@ -222,6 +367,16 @@ export interface Database {
   run_recommendations: RunRecommendationsTable;
   attempt_summary: AttemptSummaryView;
   run_summary: RunSummaryView;
+  sessions: SessionsTable;
+  session_sources: SessionSourcesTable;
+  session_repositories: SessionRepositoriesTable;
+  session_threads: SessionThreadsTable;
+  session_turns: SessionTurnsTable;
+  turn_usage_snapshots: TurnUsageSnapshotsTable;
+  session_events: SessionEventsTable;
+  session_checks: SessionChecksTable;
+  session_changes: SessionChangesTable;
+  session_summary: SessionSummaryView;
 }
 
 export type DatabaseId = Generated<string>;

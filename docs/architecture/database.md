@@ -21,6 +21,15 @@ The database stores repository names and Git revisions, never absolute repositor
 | `structural_findings`, `implementation_findings`, `execution_findings` | What was missing, built, or inefficient |
 | `run_recommendations` | Evidence-linked documentation, skill, workflow, testing, or architecture improvements |
 | `attempt_summary`, `run_summary` | Read models for reports and comparisons |
+| `sessions`, `session_sources`, `session_repositories` | Provider-neutral observed-session identity, coverage, synchronization, and optional revision context |
+| `session_threads`, `session_turns` | Orchestrator/subagent hierarchy and per-turn model attribution |
+| `turn_usage_snapshots`, `session_events` | Periodic usage and bounded normalized live evidence with replay keys |
+| `session_checks`, `session_changes` | Verification and repository-relative change evidence observed during a session |
+| `session_summary` | Durable session watermarks, counts, and latest per-turn usage projection |
+
+Live session state is rendered from memory rather than by polling SQLite after every provider event. Routine evidence is transaction-batched; lifecycle events, idle, shutdown, and terminal transitions flush immediately. `observed_sequence` and `durable_sequence` expose whether a renderer snapshot includes evidence that is not yet committed. Source event keys and sync cursors advance transactionally so reconnect replay cannot duplicate evidence or skip past a failed write.
+
+Token counts are nullable and carry a measurement classification. Unavailable imported usage remains `NULL`; it is never projected as zero. Session rows do not require repository or benchmark fields. Existing `runs`, attempts, and passes remain the controlled Benchmark Lab subtype rather than being overloaded for observed sessions.
 
 ## Migration contract
 

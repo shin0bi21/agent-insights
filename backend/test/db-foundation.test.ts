@@ -39,8 +39,12 @@ test('SQLite migrations create typed run persistence and summary views', async (
   const path = join(directory, 'runs.sqlite');
   try {
     const result = migrate({ path });
-    assert.deepEqual(result.applied, ['2026-08-14_1_initialize_run_database']);
-    assert.deepEqual(migrationStatus({ path }).map(item => item.state), ['applied']);
+    assert.deepEqual(result.applied, [
+      '2026-08-14_1_initialize_run_database',
+      '2026-08-18_1_add_session_monitoring',
+      '2026-08-19_1_add_session_worker_usage',
+    ]);
+    assert.deepEqual(migrationStatus({ path }).map(item => item.state), ['applied', 'applied', 'applied']);
 
     const database = createDatabase(path);
     try {
