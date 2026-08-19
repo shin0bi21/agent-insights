@@ -1,14 +1,41 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { createDatabase, closeDatabase } from '../src/db/client.js';
+import { databasePath } from '../src/db/config.js';
 import { migrate } from '../db/scripts/migrate.js';
 import { migrationStatus } from '../db/scripts/migration-status.js';
 
+test('database path preserves renamed installations and legacy overrides', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'agent-automation-score-path-'));
+  const previousCurrent = process.env.AGENT_AUTOMATION_SCORE_DB_PATH;
+  const previousLegacy = process.env.REPO_AUTOMATION_SCORE_DB_PATH;
+  try {
+    delete process.env.AGENT_AUTOMATION_SCORE_DB_PATH;
+    delete process.env.REPO_AUTOMATION_SCORE_DB_PATH;
+    mkdirSync(join(directory, 'data'));
+    const legacyPath = join(directory, 'data', 'repo-automation-score.sqlite');
+    writeFileSync(legacyPath, 'legacy');
+    assert.equal(databasePath(directory), legacyPath);
+    process.env.AGENT_AUTOMATION_SCORE_DB_PATH = join(directory, 'data', 'agent-automation-score.sqlite');
+    assert.equal(databasePath(directory), legacyPath);
+    delete process.env.AGENT_AUTOMATION_SCORE_DB_PATH;
+    const configured = join(directory, 'configured.sqlite');
+    process.env.REPO_AUTOMATION_SCORE_DB_PATH = configured;
+    assert.equal(databasePath(directory), configured);
+  } finally {
+    if (previousCurrent === undefined) delete process.env.AGENT_AUTOMATION_SCORE_DB_PATH;
+    else process.env.AGENT_AUTOMATION_SCORE_DB_PATH = previousCurrent;
+    if (previousLegacy === undefined) delete process.env.REPO_AUTOMATION_SCORE_DB_PATH;
+    else process.env.REPO_AUTOMATION_SCORE_DB_PATH = previousLegacy;
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test('SQLite migrations create typed run persistence and summary views', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'repo-automation-score-db-'));
+  const directory = mkdtempSync(join(tmpdir(), 'agent-automation-score-db-'));
   const path = join(directory, 'runs.sqlite');
   try {
     const result = migrate({ path });

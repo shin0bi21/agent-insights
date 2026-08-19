@@ -1,6 +1,6 @@
 ---
 name: split-changes
-description: Make the top-level split decision for Repo Automation Score working-tree changes before deep review, repeated verification, commits, or pull requests. Use when asked to split or separate work and before reviewing or shipping a large or mixed diff; confirm a genuinely cohesive change without manufacturing tiny groups.
+description: Make the top-level split decision for Agent Automation Score working-tree changes before deep review, repeated verification, commits, or pull requests. Use when asked to split or separate work and before reviewing or shipping a large or mixed diff; confirm a genuinely cohesive change without manufacturing tiny groups.
 ---
 
 # Split Changes

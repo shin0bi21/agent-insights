@@ -54,7 +54,7 @@ export default function Home(props: HomeProps) {
     <>
       <section className="mb-12" aria-labelledby="hero-title">
         <div>
-          <h1 className={`${eyebrowClass} mb-[18px]`}>Repo Automation Score</h1>
+          <h1 className={`${eyebrowClass} mb-[18px]`}>Agent Automation Score</h1>
           <h2
             id="hero-title"
             className="my-2 mb-6 max-w-[900px] text-[clamp(2.6rem,5vw,5.5rem)] leading-[.96] tracking-[-.055em] max-[850px]:text-[clamp(2.6rem,12vw,4.5rem)]"

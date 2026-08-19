@@ -4,7 +4,7 @@ SQLite is the durable local source of truth for run history and reports. Kysely 
 
 ## Storage boundary
 
-The default database is `data/repo-automation-score.sqlite`, which is ignored by Git. `REPO_AUTOMATION_SCORE_DB_PATH` may point tests or packaged builds at another local file.
+The default database is `data/agent-automation-score.sqlite`, which is ignored by Git. `AGENT_AUTOMATION_SCORE_DB_PATH` may point tests or packaged builds at another local file. Renamed installations continue using an existing `data/repo-automation-score.sqlite` when the new file is absent; `REPO_AUTOMATION_SCORE_DB_PATH` remains a deprecated compatibility alias so local history is not orphaned.
 
 The database stores repository names and Git revisions, never absolute repository paths. It stores prepared prompts and normalized evidence, not byte-for-byte provider transcripts or private chain-of-thought.
 

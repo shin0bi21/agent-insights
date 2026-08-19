@@ -1,4 +1,4 @@
-# Repo Automation Score backend
+# Agent Automation Score backend
 
 Express + TypeScript + Kysely/SQLite localhost service for repository discovery, agent execution, evaluation, and report persistence.
 

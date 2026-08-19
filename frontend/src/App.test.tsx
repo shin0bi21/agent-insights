@@ -24,7 +24,7 @@ vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
 
 test('renders the typed run configuration and provider catalog', async () => {
   render(<App />);
-  expect(screen.getByRole('heading', { name: 'Repo Automation Score' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Agent Automation Score' })).toBeInTheDocument();
   expect(screen.getByLabelText('Local repository path')).toBeInTheDocument();
   await waitFor(() => expect(screen.getByLabelText('Local repository path')).toHaveValue('/mounted/example'));
   await waitFor(() => expect(screen.getByRole('button', { name: 'Platform' })).toHaveTextContent('Codex'));
@@ -85,7 +85,15 @@ test('persists the selected appearance from Settings', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
   fireEvent.click(screen.getByRole('radio', { name: /Dark/ }));
   expect(document.documentElement).toHaveAttribute('data-theme', 'dark');
-  expect(localStorage.getItem('repo-score-theme')).toBe('dark');
+  expect(localStorage.getItem('agent-automation-score-theme')).toBe('dark');
+});
+
+test('migrates the legacy theme preference to the renamed product key', () => {
+  localStorage.setItem('repo-score-theme', 'dark');
+  render(<App />);
+  expect(document.documentElement).toHaveAttribute('data-theme', 'dark');
+  expect(localStorage.getItem('agent-automation-score-theme')).toBe('dark');
+  expect(localStorage.getItem('repo-score-theme')).toBeNull();
 });
 
 test('shows only the latest run on Home and every run in History', async () => {

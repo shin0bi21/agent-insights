@@ -1,6 +1,6 @@
 ---
 name: develop-feature
-description: Add, change, fix, or refactor Repo Automation Score product behavior across its browser UI, localhost API, repository discovery, agent-provider boundary, run lifecycle, artifacts, and reports. Use for user-facing features, API endpoints, provider integrations, persistence, accessibility, and runner orchestration; use maintain-evaluators instead when the primary change is scoring or scenario methodology.
+description: Add, change, fix, or refactor Agent Automation Score product behavior across its browser UI, localhost API, repository discovery, agent-provider boundary, run lifecycle, artifacts, and reports. Use for user-facing features, API endpoints, provider integrations, persistence, accessibility, and runner orchestration; use maintain-evaluators instead when the primary change is scoring or scenario methodology.
 ---
 
 # Develop Feature

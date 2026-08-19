@@ -1,6 +1,6 @@
-# Repo Automation Score
+# Agent Automation Score
 
-Local-first application for measuring how reliably agentic coding platforms can understand, change, and verify a repository.
+Local-first application for measuring how efficiently agentic platforms execute and verify workflows.
 
 ## Stack
 

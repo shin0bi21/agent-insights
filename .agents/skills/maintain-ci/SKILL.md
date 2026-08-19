@@ -1,6 +1,6 @@
 ---
 name: maintain-ci
-description: Assess, document, optimize, or change Repo Automation Score CI architecture, GitHub Actions workflows, branch policy, required checks, test composition, caching, and CI performance. Use for workflow failures, CI speed investigations, merge-gate changes, or edits under .github/workflows that affect automation behavior.
+description: Assess, document, optimize, or change Agent Automation Score CI architecture, GitHub Actions workflows, branch policy, required checks, test composition, caching, and CI performance. Use for workflow failures, CI speed investigations, merge-gate changes, or edits under .github/workflows that affect automation behavior.
 ---
 
 # Maintain CI

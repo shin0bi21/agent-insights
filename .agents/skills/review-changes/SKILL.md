@@ -1,6 +1,6 @@
 ---
 name: review-changes
-description: Review tracked and untracked Repo Automation Score changes for correctness, security, provider neutrality, path and subprocess safety, evaluator validity, accessibility, evidence integrity, tests, and consistency with repository contracts. Use when asked to review, audit, inspect, or assess current changes before fixing or shipping them.
+description: Review tracked and untracked Agent Automation Score changes for correctness, security, provider neutrality, path and subprocess safety, evaluator validity, accessibility, evidence integrity, tests, and consistency with repository contracts. Use when asked to review, audit, inspect, or assess current changes before fixing or shipping them.
 ---
 
 # Review Changes
