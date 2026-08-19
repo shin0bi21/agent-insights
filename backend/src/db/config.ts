@@ -1,5 +1,5 @@
-import { mkdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, mkdirSync } from 'node:fs';
+import { basename, dirname, resolve } from 'node:path';
 
 /**
  * The database remains local and ignored by Git. An explicit path is useful for
@@ -7,7 +7,24 @@ import { dirname, resolve } from 'node:path';
  * in run records.
  */
 export function databasePath(root = process.cwd()) {
-  return resolve(process.env.REPO_AUTOMATION_SCORE_DB_PATH ?? resolve(root, 'data', 'repo-automation-score.sqlite'));
+  const configured = process.env.AGENT_AUTOMATION_SCORE_DB_PATH
+    ?? process.env.REPO_AUTOMATION_SCORE_DB_PATH;
+  if (configured) {
+    const current = resolve(configured);
+    const legacySibling = resolve(dirname(current), 'repo-automation-score.sqlite');
+    if (
+      basename(current) === 'agent-automation-score.sqlite'
+      && !existsSync(current)
+      && existsSync(legacySibling)
+    ) {
+      return legacySibling;
+    }
+    return current;
+  }
+
+  const current = resolve(root, 'data', 'agent-automation-score.sqlite');
+  const legacy = resolve(root, 'data', 'repo-automation-score.sqlite');
+  return existsSync(current) || !existsSync(legacy) ? current : legacy;
 }
 
 export function ensureDatabaseDirectory(path: string) {

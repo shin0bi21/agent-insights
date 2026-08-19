@@ -1,4 +1,4 @@
-# Repo Automation Score frontend
+# Agent Automation Score frontend
 
 React + TypeScript + Vite browser interface for repository setup, run progress, history, settings, and reports.
 

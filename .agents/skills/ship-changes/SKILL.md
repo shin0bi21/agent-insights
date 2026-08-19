@@ -1,6 +1,6 @@
 ---
 name: ship-changes
-description: Ship approved Repo Automation Score changes through GitHub Issues, issue-numbered branches, isolated verification, commits, pull requests to develop, required checks, and merges. Use when the user explicitly asks to ship, commit and merge, split and ship, or finalize reviewed changes through the repository's GitHub workflow.
+description: Ship approved Agent Automation Score changes through GitHub Issues, issue-numbered branches, isolated verification, commits, pull requests to develop, required checks, and merges. Use when the user explicitly asks to ship, commit and merge, split and ship, or finalize reviewed changes through the repository's GitHub workflow.
 ---
 
 # Ship Changes

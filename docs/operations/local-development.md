@@ -28,7 +28,7 @@ npm run db:status
 npm run db:import-results
 ```
 
-`db:import-results` is a one-time idempotent upgrade path for installations with legacy `results/web-runs`. Verify imported run/pass counts and report projections before deleting source data. The default database lives at `data/repo-automation-score.sqlite`; override it with `REPO_AUTOMATION_SCORE_DB_PATH` for tests or packaging.
+`db:import-results` is a one-time idempotent upgrade path for installations with legacy `results/web-runs`. Verify imported run/pass counts and report projections before deleting source data. New installations default to `data/agent-automation-score.sqlite`; renamed installations reuse the previous database when present. Override it with `AGENT_AUTOMATION_SCORE_DB_PATH`; `REPO_AUTOMATION_SCORE_DB_PATH` remains a deprecated alias.
 
 ## Run execution
 
@@ -61,6 +61,6 @@ docker compose exec app codex --version
 docker compose exec app docker compose version
 ```
 
-`app_data` retains SQLite and `codex_state` retains provider authentication across ordinary restarts and `docker compose down`. Deleting volumes erases that local state and is not a routine restart operation.
+`app_data` retains SQLite and `codex_state` retains provider authentication across ordinary restarts and `docker compose down`. Their default engine-level names remain `repo-automation-score_app_data` and `repo-automation-score_codex_state` so renamed installations keep existing state. Set `AAS_APP_DATA_VOLUME` or `AAS_CODEX_STATE_VOLUME` only when intentionally selecting different volumes. Deleting volumes erases that local state and is not a routine restart operation.
 
-For a trusted target-owned Docker scenario, set `RAS_DOCKER_SOCKET_PATH=/var/run/docker.sock` in `.env` and recreate the service. Leave it as `/dev/null` otherwise. The host and container runtime paths must remain identical; changing `.env` requires recreating the service.
+For a trusted target-owned Docker scenario, set `AAS_DOCKER_SOCKET_PATH=/var/run/docker.sock` in `.env` and recreate the service. Leave it as `/dev/null` otherwise. The host and container runtime paths must remain identical; changing `.env` requires recreating the service. Existing `RAS_*` variables remain deprecated compatibility aliases.

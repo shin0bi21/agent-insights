@@ -37,7 +37,10 @@ export function createBenchmarkApp(options: CreateBenchmarkAppOptions): Express 
   const getProviders = options.providers ?? providerCatalog;
   const validateGuidance = options.validateGuidance ?? validateAutomationGuidance;
   const directoryPickerAvailable = options.directoryPickerAvailable ?? process.platform === 'darwin';
-  const repositoryPath = options.repositoryPath ?? process.env.RAS_REPOSITORY_PATH ?? null;
+  const repositoryPath = options.repositoryPath
+    ?? process.env.AAS_REPOSITORY_PATH
+    ?? process.env.RAS_REPOSITORY_PATH
+    ?? null;
   const app = express();
 
   app.disable('x-powered-by');

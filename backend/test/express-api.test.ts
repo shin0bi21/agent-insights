@@ -61,8 +61,9 @@ test('Express API preserves run routes with an injected manager', async () => {
 
 test('server binding stays loopback by default and requires an explicit container host', () => {
   assert.equal(resolveServerHost({}), '127.0.0.1');
-  assert.equal(resolveServerHost({ REPO_AUTOMATION_SCORE_HOST: '0.0.0.0' }), '0.0.0.0');
-  assert.throws(() => resolveServerHost({ REPO_AUTOMATION_SCORE_HOST: 'example.com' }), /loopback or all-interface/);
+  assert.equal(resolveServerHost({ AGENT_AUTOMATION_SCORE_HOST: '0.0.0.0' }), '0.0.0.0');
+  assert.equal(resolveServerHost({ REPO_AUTOMATION_SCORE_HOST: '::1' }), '::1');
+  assert.throws(() => resolveServerHost({ AGENT_AUTOMATION_SCORE_HOST: 'example.com' }), /loopback or all-interface/);
 });
 
 test('Express API returns JSON for validation, parse, and not-found failures', async () => {

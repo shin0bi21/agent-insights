@@ -1,6 +1,6 @@
 # Automation readiness
 
-Automation readiness estimates how reliably an agent can understand, change, verify, and explain a repository. It is not a score for copying Repo Automation Score's folder structure.
+Automation readiness estimates how reliably an agent can understand, change, verify, and explain a repository. It is not a score for copying Agent Automation Score's folder structure.
 
 The universal score covers discoverable instructions, reproducible setup, safe isolation, clear task and ownership boundaries, deterministic verification, observable failures, and complete run evidence. Empirical agent success and consistency are reported separately from static readiness so a strong model does not hide weak repository guidance.
 

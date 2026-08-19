@@ -34,7 +34,7 @@ export default function Settings({ theme, onThemeChange }: SettingsProps) {
             Settings
           </h2>
           <p className={mutedTextClass}>
-            Choose how Repo Automation Score looks on this machine.
+            Choose how Agent Automation Score looks on this machine.
           </p>
         </div>
       </div>
