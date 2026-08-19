@@ -12,6 +12,7 @@ Use the narrowest authoritative test while developing and the complete affected 
 | Frontend TypeScript | `npm run web:check` |
 | Frontend production build | `npm run web:build` |
 | Repository skills | `npm run validate:skills` |
+| Core static validation (skills, docs, and TypeScript) | `npm run check` |
 | Local documentation links | `npm run validate:docs` |
 | Migration state | `npm run db:status` |
 | Compose interpolation in default and Docker-enabled modes | `npm run docker:config` |
