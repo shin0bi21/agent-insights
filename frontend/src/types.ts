@@ -73,7 +73,74 @@ export interface LiveSessionSnapshot {
     averageSkillReadLatencyMs: number | null;
     currentPromptHasSkillRead: boolean | null;
   };
+  offload: {
+    available: boolean;
+    shellBatches: number;
+    candidateBatches: number;
+    associatedInputTokens: number;
+    associatedCachedInputTokens: number;
+    associatedOutputTokens: number;
+    associatedTotalTokens: number;
+    categories: {
+      verification: number;
+      build: number;
+      formatting: number;
+      script: number;
+      monitoring: number;
+    };
+    processPatterns: Array<{
+      key: string;
+      label: string;
+      runner: 'package-manager' | 'git-host' | 'script' | 'language-tool' | 'container';
+      operation: 'test' | 'check' | 'lint' | 'typecheck' | 'build' | 'format' | 'deploy' | 'pr-checks' | 'monitor' | 'script';
+      batchCount: number;
+      successCount: number;
+      failureCount: number;
+      unknownCount: number;
+      outputBytes: number;
+      maximumOutputBytes: number;
+      outputMode: 'final-state' | 'summary-errors';
+      recommendation: string;
+    }>;
+  };
+  directives: DirectiveSummary;
   workers: LiveWorkerTokenUsage[];
+}
+
+export interface DirectiveSummary {
+  available: boolean;
+  classifierVersion: number;
+  episodes: DirectiveEpisode[];
+}
+
+export interface DirectiveEpisode {
+  key: string;
+  sequenceNumber: number;
+  status: 'active' | 'completed';
+  startedAt: string;
+  completedAt: string | null;
+  openingInteractionKey: string;
+  openingKind: 'directive' | 'question' | 'correction' | 'approval' | 'context' | 'mixed';
+  classificationConfidence: number;
+  preparation: { questions: number; context: number; approvals: number; patternReferences: number; skillsUsed: string[] };
+  corrections: number;
+  context: { tokensAtStart: number; window: number | null; percentAtStart: number | null; peakPercent: number | null };
+  usageAtStart: { inputTokens: number; cachedInputTokens: number; outputTokens: number };
+  discovery: {
+    agentsReferences: number;
+    skillReferences: number;
+    skillsUsed: string[];
+    firstPatternLatencyMs: number | null;
+    patternBeforeFirstChange: boolean | null;
+  };
+  execution: {
+    toolCalls: number;
+    fileChanges: number;
+    webSearches: number;
+    delegations: number;
+    compactions: number;
+    verificationBatches: number;
+  };
 }
 
 export interface LiveWorkerTokenUsage {
@@ -113,6 +180,8 @@ export interface SessionReview {
   externalSessionId: string;
   repositoryName: string | null;
   evidence: Record<string, number>;
+  offload: LiveSessionSnapshot['offload'];
+  directives: DirectiveSummary;
   usageAvailable: boolean;
   workerUsage: WorkerTokenUsage[];
   modelUsage: ModelTokenUsage[];

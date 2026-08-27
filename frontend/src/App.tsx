@@ -251,7 +251,7 @@ export default function App() {
       </header>
       <main
         id="main"
-        className="mx-auto w-[min(1400px,90vw)] py-16 max-[850px]:w-[min(92vw,680px)] max-[850px]:pt-10"
+        className={`mx-auto w-[min(1400px,90vw)] max-[850px]:w-[min(92vw,680px)] ${view === 'sessions' ? 'pt-8 pb-16 max-[850px]:pt-6' : 'py-16 max-[850px]:pt-10'}`}
       >
         {view === 'home' && <Landing onNavigate={setView} />}
         {view === 'benchmark' && (
