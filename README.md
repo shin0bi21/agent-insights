@@ -22,5 +22,5 @@ Local-first application for measuring how efficiently agentic platforms execute 
 | Frontend | [frontend/README.md](frontend/README.md) |
 | Backend and API | [backend/README.md](backend/README.md) |
 | Development handbook | [docs/development/README.md](docs/development/README.md) |
-| Repository workflows | [docs/operations/README.md](docs/operations/README.md) |
+| Repository workflows | [docs/workflows/README.md](docs/workflows/README.md) |
 | Benchmark definitions | [benchmarks/README.md](benchmarks/README.md) |

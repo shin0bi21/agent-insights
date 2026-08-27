@@ -16,8 +16,8 @@ Docker is an optional packaging boundary for the existing application, not a sec
 - Keep host exposure on `127.0.0.1`; `0.0.0.0` is only the container-internal bind address.
 - Mount exactly the selected repository rather than a home directory or broad source root.
 - Mount the runtime directory at the same absolute path on host and container. Nested Docker receives host-resolvable worktree paths from that directory.
-- Keep SQLite and provider state in separate named volumes. Their legacy engine-level names remain the defaults across the product rename; explicit `AAS_APP_DATA_VOLUME` and `AAS_CODEX_STATE_VOLUME` overrides opt into different state. Never bake either into an image or commit them.
-- Keep the Docker socket unusable by default with `AAS_DOCKER_SOCKET_PATH=/dev/null`. Opting into `/var/run/docker.sock` is privileged and only applies to trusted scenarios or repositories that launch Docker.
+- Keep SQLite and provider state in separate named volumes. Explicit `AGENT_INSIGHTS_APP_DATA_VOLUME` and `AGENT_INSIGHTS_CODEX_STATE_VOLUME` overrides opt into different state. Never bake either into an image or commit them.
+- Keep the Docker socket unusable by default with `AGENT_INSIGHTS_DOCKER_SOCKET_PATH=/dev/null`. Opting into `/var/run/docker.sock` is privileged and only applies to trusted scenarios or repositories that launch Docker.
 - Pin provider tooling through a build argument and document upgrades. Provider installation belongs in a replaceable image layer; application code remains provider-neutral.
 - Run compiled backend code in production mode. Native development continues to use `tsx` and Vite watchers.
 - Treat target-repository toolchains as an explicit compatibility boundary. The base image supplies Node.js, npm, Git, SSH, Codex, and Docker CLI; repositories that require other languages or system packages need a deliberate image extension or the native runtime.

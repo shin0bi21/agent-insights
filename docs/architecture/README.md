@@ -24,7 +24,7 @@ Express API ── Kysely ── SQLite
 | Evidence and reports | [evidence-and-reports.md](evidence-and-reports.md) | Evaluations, findings, recommendations, comparison data, and presentation |
 | Continuous integration | [ci.md](ci.md) | Merge-gate topology, branch flow, and command ownership |
 
-This directory owns system-wide boundaries and invariants. Product behavior belongs under [`docs/features/`](../features/README.md), implementation procedures under [`docs/development/`](../development/README.md), and executable repository procedures under [`docs/operations/`](../operations/README.md).
+This directory owns system-wide boundaries and invariants. Product behavior belongs under [`docs/features/`](../features/README.md), implementation procedures under [`docs/development/`](../development/README.md), and executable repository procedures under [`docs/workflows/`](../workflows/README.md).
 
 ## Stable boundaries
 

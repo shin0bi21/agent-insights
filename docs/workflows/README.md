@@ -1,6 +1,6 @@
-# Operations
+# Repository workflows
 
-These guides cover preparing, running, verifying, and troubleshooting the local application. They are separate from `docs/development/`, which explains how to change product behavior.
+These guides own executable setup, local operation, testing, review, shipping, and CI procedures. Product behavior remains under `docs/features/`, implementation guidance under `docs/development/`, and durable system boundaries under `docs/architecture/`.
 
 | Task | Guide |
 |---|---|
@@ -10,5 +10,7 @@ These guides cover preparing, running, verifying, and troubleshooting the local 
 | Diagnose the UI, API, database, provider, or target run | [Debugging](debugging.md) |
 | Configure and run a paid benchmark | [Running benchmarks](running-benchmarks.md) |
 | Understand or change the merge gate | [Continuous integration](ci.md) |
+| Review mapped concerns | [Review](review.md) |
+| Ship approved concerns to `develop` | [Shipping](shipping.md) |
 
 There is no production deployment contract yet. Add one only when a supported hosted or packaged distribution exists.

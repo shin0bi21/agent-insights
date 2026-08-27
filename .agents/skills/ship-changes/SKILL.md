@@ -1,18 +1,20 @@
 ---
 name: ship-changes
-description: Ship approved Agent Automation Score changes through GitHub Issues, issue-numbered branches, isolated verification, commits, pull requests to develop, required checks, and merges. Use when the user explicitly asks to ship, commit and merge, split and ship, or finalize reviewed changes through the repository's GitHub workflow.
+description: Ship approved Agent Insights changes through GitHub Issues, issue-numbered branches, isolated verification, commits, pull requests to develop, required checks, and merges. Use when the user explicitly asks to ship, commit and merge, split and ship, or finalize reviewed changes through the repository's GitHub workflow.
 ---
 
 # Ship Changes
 
 Ship reviewed concerns serially. Do not delegate operations that share Git or GitHub state. This workflow ends with clean, synchronized `develop`; it never authorizes a release to `main`, deployment, package publishing, or uploading local run data.
 
-Keep the shipping orchestrator on the strongest available tier. The only delegated prerequisite may be the complete read-only `split-changes` workflow under that skill’s single low-cost-worker policy. Never delegate mutable branch, stash, commit, push, pull-request, check-waiting, or merge operations.
+Enter only after an explicit shipping request. Read [`docs/workflows/shipping.md`](../../../docs/workflows/shipping.md) completely and follow [`docs/workflows/testing.md`](../../../docs/workflows/testing.md) for verification evidence.
+
+Keep the shipping orchestrator on the strongest available tier. The only delegated prerequisite may be the complete read-only `map-changes` workflow under that skill’s single low-cost-worker policy. Never delegate mutable branch, stash, commit, push, pull-request, check-waiting, or merge operations.
 
 ## Audit
 
 1. Confirm branch, upstream, complete tracked and untracked diff, stashes, existing issues, and open pull requests.
-2. Reuse the latest `split-changes` concern map. Run that workflow first for a large or mixed diff without a current map.
+2. Reuse the latest `map-changes` concern map. Run that workflow first whenever no current map exists, even when the tree appears cohesive.
 3. Require high- and medium-severity review findings to be resolved. Explicitly accept or defer remaining low-severity findings.
 4. Verify local databases, temporary run data, logs, prompts, patches, repository paths, and credentials are ignored and absent from the diff and history.
 5. Present the issue and branch groups before remote changes. A request to commit, push, ship, or merge authorizes only the feature workflow through `develop`.

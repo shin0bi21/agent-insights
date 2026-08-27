@@ -11,8 +11,8 @@ React + TypeScript + Vite browser interface for repository setup, session connec
 | Development handbook | [`../docs/development/README.md`](../docs/development/README.md) |
 | Application workflows | [`../docs/development/frontend/application-workflows.md`](../docs/development/frontend/application-workflows.md) |
 | Interactions and overlays | [`../docs/development/frontend/interactions.md`](../docs/development/frontend/interactions.md) |
-| Local development | [`../docs/operations/local-development.md`](../docs/operations/local-development.md) |
-| Testing | [`../docs/operations/testing.md`](../docs/operations/testing.md) |
+| Local development | [`../docs/workflows/local-development.md`](../docs/workflows/local-development.md) |
+| Testing | [`../docs/workflows/testing.md`](../docs/workflows/testing.md) |
 
 ## Stack
 

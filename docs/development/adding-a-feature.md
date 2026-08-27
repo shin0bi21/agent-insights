@@ -21,4 +21,4 @@ Keep browser code responsible for interaction and presentation. Keep repository 
 
 Add unit tests for domain and parsing logic, persistence tests for normalized data, API tests for boundary changes, and component tests for interaction. Smoke-test the browser/service boundary. Do not launch a paid agent run unless actual execution is the behavior under test or the user explicitly authorizes the cost.
 
-Use [Testing](../operations/testing.md), update affected documentation, then follow [Review and shipping](review-and-shipping.md).
+Use [Testing](../workflows/testing.md), update affected documentation, then follow the separate [review](../workflows/review.md) and [shipping](../workflows/shipping.md) handoffs.

@@ -5,17 +5,18 @@
 - Treat this repository as the workspace boundary and do not inspect target repositories unless the task names or authorizes them.
 - Use `.agents/skills/develop-feature/` for product and application changes.
 - Use `.agents/skills/maintain-evaluators/` for scenarios, scoring, comparison, report evidence, and automation-readiness changes.
-- Before deep review or shipping, use `.agents/skills/split-changes/` to decide whether the diff is one concern or produce the authoritative concern map.
+- After implementation and before deep review or shipping, use `.agents/skills/map-changes/` to produce the authoritative concern map. A cohesive diff produces one concern; a mixed diff produces multiple concerns.
 - Use `.agents/skills/review-changes/` for repeatable concern-level review and `.agents/skills/ship-changes/` for issue, branch, verification, pull-request, check, and merge workflows.
-- Follow `split decision → concern review → feature pull request to develop → separately authorized release pull request to main`. Deployment and package publication always require separate explicit authorization.
+- Follow `implementation → concern map → concern review and focused verification → explicitly authorized concern pull request to develop → separately authorized release pull request to main`. Treat every arrow as a handoff boundary. Deployment and package publication always require separate explicit authorization.
+- A request for full implementation authorizes implementation, concern mapping, review, fixes, and re-review. It does not authorize shipping, release, deployment, or package publication.
 - Ship mixed work serially. Complete one concern through merge, return to clean synchronized `develop`, and only then prepare the next concern.
 - Use `.agents/skills/maintain-ci/` for GitHub Actions, required checks, branch policy, runner composition, caching, and CI performance work.
 - Read the applicable contract under `docs/features/` before changing established behavior.
 - Start feature work in `docs/development/adding-a-feature.md` or `docs/development/updating-a-feature.md`, then follow only the linked boundary guides that apply.
 - Use `docs/architecture/README.md` to select the frontend, backend, database, provider/execution, evidence/report, or CI contract before changing that boundary.
-- Read `docs/operations/local-development.md` before running the web service and `docs/operations/running-benchmarks.md` before an actual agent benchmark.
-- Read `docs/operations/ci.md` before changing workflows, required checks, or branch policy.
-- Read `docs/development/review-and-shipping.md` before reviewing or shipping accumulated changes.
+- Enter operational procedures through `docs/workflows/README.md`. Read `docs/workflows/local-development.md` before running the web service and `docs/workflows/running-benchmarks.md` before an actual agent benchmark.
+- Read `docs/workflows/ci.md` before changing workflows, required checks, or branch policy.
+- Read `docs/workflows/review.md` before reviewing and `docs/workflows/shipping.md` before shipping accumulated changes.
 
 ## Product invariants
 

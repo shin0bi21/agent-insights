@@ -28,7 +28,7 @@ npm run db:status
 npm run db:import-results
 ```
 
-SQLite is the only durable run store. `db:import-results` remains a one-time upgrade path for installations with unimported `results/web-runs`; verify the normalized data before removing the ignored source directory. New installations default to `data/agent-automation-score.sqlite`; a renamed installation reuses the previous database when present. Override it with `AGENT_AUTOMATION_SCORE_DB_PATH` for tests or packaging. Web-managed runner output is removed after successful normalization. Standalone CLI diagnostics remain at the printed path until explicitly removed.
+SQLite is the only durable run store. `db:import-results` remains a one-time upgrade path for installations with unimported `results/web-runs`; verify the normalized data before removing the ignored source directory. Installations default to `data/agent-insights.sqlite`; override it with `AGENT_INSIGHTS_DB_PATH` for tests or packaging. Web-managed runner output is removed after successful normalization. Standalone CLI diagnostics remain at the printed path until explicitly removed.
 
 ## Run execution
 
@@ -61,6 +61,6 @@ docker compose exec app codex --version
 docker compose exec app docker compose version
 ```
 
-`app_data` retains SQLite and `codex_state` retains provider authentication across ordinary restarts and `docker compose down`. Their default engine-level names remain `repo-automation-score_app_data` and `repo-automation-score_codex_state` so renamed installations keep existing state. Set `AAS_APP_DATA_VOLUME` or `AAS_CODEX_STATE_VOLUME` only when intentionally selecting different volumes. Deleting volumes erases that local state and is not a routine restart operation.
+`app_data` retains SQLite and `codex_state` retains provider authentication across ordinary restarts and `docker compose down`. Their default engine-level names are `agent-insights_app_data` and `agent-insights_codex_state`. Set `AGENT_INSIGHTS_APP_DATA_VOLUME` or `AGENT_INSIGHTS_CODEX_STATE_VOLUME` only when intentionally selecting different volumes. Deleting volumes erases that local state and is not a routine restart operation.
 
-For a trusted target-owned Docker scenario, set `AAS_DOCKER_SOCKET_PATH=/var/run/docker.sock` in `.env` and recreate the service. Leave it as `/dev/null` otherwise. The host and container runtime paths must remain identical; changing `.env` requires recreating the service. Existing `RAS_*` variables remain deprecated compatibility aliases.
+For a trusted target-owned Docker scenario, set `AGENT_INSIGHTS_DOCKER_SOCKET_PATH=/var/run/docker.sock` in `.env` and recreate the service. Leave it as `/dev/null` otherwise. The host and container runtime paths must remain identical; changing `.env` requires recreating the service.
