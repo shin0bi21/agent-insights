@@ -328,6 +328,97 @@ export interface SessionChangesTable {
   occurred_at: string;
 }
 
+export interface SessionOffloadSummariesTable {
+  session_id: string;
+  measurement: 'exact-live' | 'exact-stored' | 'derived';
+  shell_batches: number;
+  candidate_batches: number;
+  associated_input_tokens: number;
+  associated_cached_input_tokens: number;
+  associated_output_tokens: number;
+  associated_total_tokens: number;
+  verification_batches: number;
+  build_batches: number;
+  formatting_batches: number;
+  script_batches: number;
+  monitoring_batches: number;
+  observed_at: string;
+}
+
+export interface SessionOffloadProcessesTable {
+  session_id: string;
+  signature_key: string;
+  runner: 'package-manager' | 'git-host' | 'script' | 'language-tool' | 'container';
+  operation: 'test' | 'check' | 'lint' | 'typecheck' | 'build' | 'format' | 'deploy' | 'pr-checks' | 'monitor' | 'script';
+  label: string;
+  batch_count: number;
+  success_count: number;
+  failure_count: number;
+  unknown_count: number;
+  output_bytes: number;
+  maximum_output_bytes: number;
+  output_mode: 'final-state' | 'summary-errors';
+  recommendation: string;
+  classifier_version: number;
+}
+
+export interface SessionInteractionsTable {
+  id: string;
+  session_id: string;
+  source_interaction_key: string;
+  sequence_number: number;
+  kind: 'directive' | 'question' | 'correction' | 'approval' | 'context' | 'mixed';
+  occurred_at: string;
+  classifier_version: number;
+  confidence: number;
+  context_tokens: number | null;
+  context_window: number | null;
+  input_tokens: number | null;
+  cached_input_tokens: number | null;
+  output_tokens: number | null;
+}
+
+export interface SessionDirectiveEpisodesTable {
+  id: string;
+  session_id: string;
+  opening_interaction_id: string;
+  sequence_number: number;
+  status: 'active' | 'completed';
+  started_at: string;
+  completed_at: string | null;
+  classification_confidence: number;
+  measurement: 'exact-live' | 'exact-stored' | 'derived' | 'unavailable';
+  preparation_questions: number;
+  preparation_context: number;
+  preparation_approvals: number;
+  preparation_pattern_references: number;
+  correction_count: number;
+  context_tokens_at_start: number | null;
+  context_window: number | null;
+  peak_context_percent: number | null;
+  agents_references: number;
+  skill_references: number;
+  first_pattern_latency_ms: number | null;
+  pattern_before_first_change: 0 | 1 | null;
+  tool_calls: number;
+  file_changes: number;
+  web_searches: number;
+  delegations: number;
+  compactions: number;
+  verification_batches: number;
+  classifier_version: number;
+}
+
+export interface SessionEpisodeSkillsTable {
+  episode_id: string;
+  skill_name: string;
+}
+
+export interface SessionEpisodePreparationSkillsTable {
+  episode_id: string;
+  skill_name: string;
+}
+
 export interface SessionSummaryView {
   session_id: string;
   status: SessionStatus;
@@ -376,6 +467,12 @@ export interface Database {
   session_events: SessionEventsTable;
   session_checks: SessionChecksTable;
   session_changes: SessionChangesTable;
+  session_offload_summaries: SessionOffloadSummariesTable;
+  session_offload_processes: SessionOffloadProcessesTable;
+  session_interactions: SessionInteractionsTable;
+  session_directive_episodes: SessionDirectiveEpisodesTable;
+  session_episode_skills: SessionEpisodeSkillsTable;
+  session_episode_preparation_skills: SessionEpisodePreparationSkillsTable;
   session_summary: SessionSummaryView;
 }
 
