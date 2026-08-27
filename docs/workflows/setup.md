@@ -37,12 +37,12 @@ Docker is an alternative to installing Node.js dependencies on the host. Copy th
 
 ```bash
 cp .env.example .env
-mkdir -p /absolute/path/to/agent-automation-score-runtime
+mkdir -p /absolute/path/to/agent-insights-runtime
 docker compose config
 docker compose build
 ```
 
-`AAS_REPOSITORY_PATH` identifies the one attached Git repository. `AAS_RUNTIME_PATH` is a dedicated disposable worktree directory. Both are mounted at the same absolute paths inside the container; do not point either value at a home directory or broad source root. Existing `RAS_*` values remain deprecated compatibility aliases.
+`AGENT_INSIGHTS_REPOSITORY_PATH` identifies the one attached Git repository. `AGENT_INSIGHTS_RUNTIME_PATH` is a dedicated disposable worktree directory. Both are mounted at the same absolute paths inside the container; do not point either value at a home directory or broad source root.
 
 Authenticate the currently installed Codex provider into its dedicated named volume:
 
@@ -57,12 +57,12 @@ docker compose up -d
 docker compose ps
 ```
 
-Open `http://127.0.0.1:4173`. The container is Linux, so the macOS folder picker is unavailable; enter the exact `AAS_REPOSITORY_PATH` value and select **Connect**.
+Open `http://127.0.0.1:4173`. The container is Linux, so the macOS folder picker is unavailable; enter the exact `AGENT_INSIGHTS_REPOSITORY_PATH` value and select **Connect**.
 
 If the selected target repository or scenario launches Docker, set this only after confirming that the repository and prompt are trusted:
 
 ```bash
-AAS_DOCKER_SOCKET_PATH=/var/run/docker.sock
+AGENT_INSIGHTS_DOCKER_SOCKET_PATH=/var/run/docker.sock
 docker compose up -d
 ```
 

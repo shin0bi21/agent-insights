@@ -5,8 +5,8 @@ Use this handbook when adding or changing product code. Feature documents explai
 1. Read the applicable contract under [`docs/features/`](../features/README.md).
 2. Start with [Adding a feature](adding-a-feature.md) or [Updating a feature](updating-a-feature.md).
 3. Follow only the backend, frontend, provider, or evaluator guides that own the change.
-4. Use [Testing](../operations/testing.md) for focused verification.
-5. Finish with [Review and shipping](review-and-shipping.md).
+4. Use [Testing](../workflows/testing.md) for focused verification.
+5. Finish with the separate [review](../workflows/review.md) and [shipping](../workflows/shipping.md) handoffs.
 
 ## Guide map
 
@@ -22,6 +22,7 @@ Use this handbook when adding or changing product code. Feature documents explai
 | Add or change a reusable overlay | [Frontend interactions](frontend/interactions.md) |
 | Add an agent platform | [Adding a provider](providers/adding-a-provider.md) |
 | Change scoring or benchmark definitions | [Adding or changing an evaluator](evaluators/adding-an-evaluator.md) |
-| Review and ship | [Review and shipping](review-and-shipping.md) |
+| Review mapped concerns | [Review](../workflows/review.md) |
+| Ship approved concerns | [Shipping](../workflows/shipping.md) |
 
 The source tree remains authoritative for exact filenames. Add documentation when it provides a durable contract, procedure, or ownership map—not merely a second inventory of code.

@@ -24,4 +24,4 @@ Do not touch every layer automatically. Change only the owners of the behavior a
 
 ## 3. Review and verify
 
-Run focused tests during implementation, update the feature contract when behavior changes, and use [Testing](../operations/testing.md) before handoff. Then follow [Review and shipping](review-and-shipping.md).
+Run focused tests during implementation, update the feature contract when behavior changes, and use [Testing](../workflows/testing.md) before handoff. Then follow the separate [review](../workflows/review.md) and [shipping](../workflows/shipping.md) handoffs.

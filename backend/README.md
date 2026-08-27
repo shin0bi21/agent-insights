@@ -11,8 +11,8 @@ Express + TypeScript + Kysely/SQLite localhost service for repository discovery,
 | Providers and execution | [`../docs/architecture/providers-and-execution.md`](../docs/architecture/providers-and-execution.md) |
 | Evidence and reports | [`../docs/architecture/evidence-and-reports.md`](../docs/architecture/evidence-and-reports.md) |
 | Development handbook | [`../docs/development/README.md`](../docs/development/README.md) |
-| Local development | [`../docs/operations/local-development.md`](../docs/operations/local-development.md) |
-| Testing | [`../docs/operations/testing.md`](../docs/operations/testing.md) |
+| Local development | [`../docs/workflows/local-development.md`](../docs/workflows/local-development.md) |
+| Testing | [`../docs/workflows/testing.md`](../docs/workflows/testing.md) |
 
 ## Stack
 
