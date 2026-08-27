@@ -1,11 +1,11 @@
 {
-  "name": "agent-automation-score",
+  "name": "agent-insights",
   "version": "0.1.0",
   "description": "Measure how efficiently AI agents execute and verify workflows.",
   "private": true,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/shin0bi21/agent-automation-score.git"
+    "url": "git+https://github.com/shin0bi21/agent-insights.git"
   },
   "type": "module",
   "engines": {
@@ -27,8 +27,8 @@
     "db:status": "tsx backend/db/scripts/migration-status.ts",
     "db:import-results": "tsx backend/db/scripts/import-results.ts",
     "db:types": "kysely-codegen --dialect sqlite --out-file backend/src/db/generated.ts",
-    "docker:config": "AAS_REPOSITORY_PATH=/tmp/agent-automation-score-ci-repository AAS_RUNTIME_PATH=/tmp/agent-automation-score-ci-runtime AAS_DOCKER_SOCKET_PATH=/dev/null docker compose config --quiet && RAS_REPOSITORY_PATH=/tmp/repo-automation-score-ci-repository RAS_RUNTIME_PATH=/tmp/repo-automation-score-ci-runtime RAS_DOCKER_SOCKET_PATH=/var/run/docker.sock docker compose config --quiet",
-    "docker:build": "docker build --tag agent-automation-score:check .",
+    "docker:config": "AGENT_INSIGHTS_REPOSITORY_PATH=/tmp/agent-insights-ci-repository AGENT_INSIGHTS_RUNTIME_PATH=/tmp/agent-insights-ci-runtime AGENT_INSIGHTS_DOCKER_SOCKET_PATH=/dev/null docker compose config --quiet && AGENT_INSIGHTS_REPOSITORY_PATH=/tmp/agent-insights-ci-repository AGENT_INSIGHTS_RUNTIME_PATH=/tmp/agent-insights-ci-runtime AGENT_INSIGHTS_DOCKER_SOCKET_PATH=/var/run/docker.sock docker compose config --quiet",
+    "docker:build": "docker build --tag agent-insights:check .",
     "validate:skills": "tsx scripts/validate-skills.ts",
     "validate:docs": "tsx scripts/validate-doc-links.ts"
   },

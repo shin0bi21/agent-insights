@@ -1,4 +1,4 @@
-# Agent Automation Score frontend
+# Agent Insights frontend
 
 React + TypeScript + Vite browser interface for repository setup, session connections, run progress, history, settings, and reports.
 

@@ -33,7 +33,7 @@ Retries are separate attempts. Review loops are ordered passes inside an attempt
 
 The optional application container does not make host repositories or provider credentials globally available. Compose mounts one explicitly configured repository and a dedicated runtime directory at identical absolute host/container paths. Path symmetry lets a target-owned Compose project resolve isolated worktrees through the host Docker daemon.
 
-Provider state and SQLite data use separate named volumes. The single Compose configuration maps `/dev/null` over the Docker socket location by default. Setting `AAS_DOCKER_SOCKET_PATH=/var/run/docker.sock` enables target-owned Docker only for scenarios that require it; that socket grants host-level control and must be treated as a privileged opt-in. The browser remains published on host loopback even though Express binds to all container interfaces internally.
+Provider state and SQLite data use separate named volumes. The single Compose configuration maps `/dev/null` over the Docker socket location by default. Setting `AGENT_INSIGHTS_DOCKER_SOCKET_PATH=/var/run/docker.sock` enables target-owned Docker only for scenarios that require it; that socket grants host-level control and must be treated as a privileged opt-in. The browser remains published on host loopback even though Express binds to all container interfaces internally.
 
 ## Event normalization
 

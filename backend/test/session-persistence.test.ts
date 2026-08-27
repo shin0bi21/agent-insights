@@ -9,7 +9,7 @@ import { migrate } from '../src/db/migrator.js';
 import { createSessionPersistence } from '../src/services/session-persistence.js';
 
 async function withDatabase(run: (path: string) => Promise<void>) {
-  const directory = mkdtempSync(join(tmpdir(), 'agent-automation-score-session-'));
+  const directory = mkdtempSync(join(tmpdir(), 'agent-insights-session-'));
   const path = join(directory, 'sessions.sqlite');
   try {
     migrate({ path });

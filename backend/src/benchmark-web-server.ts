@@ -13,6 +13,6 @@ export const app = createBenchmarkApp({ root: ROOT });
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   createServer(app).listen(port, host, () => {
-    console.log(`Agent Automation Score listening on ${host}:${port}`);
+    console.log(`Agent Insights listening on ${host}:${port}`);
   });
 }

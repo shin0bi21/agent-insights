@@ -40,8 +40,8 @@ COPY benchmarks ./benchmarks
 RUN mkdir -p /data /root/.codex
 
 ENV NODE_ENV=production \
-  AGENT_AUTOMATION_SCORE_HOST=0.0.0.0 \
-  AGENT_AUTOMATION_SCORE_DB_PATH=/data/agent-automation-score.sqlite \
+  AGENT_INSIGHTS_HOST=0.0.0.0 \
+  AGENT_INSIGHTS_DB_PATH=/data/agent-insights.sqlite \
   BENCHMARK_WEB_PORT=4173 \
   HOME=/root \
   CODEX_HOME=/root/.codex
