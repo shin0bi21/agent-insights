@@ -5,7 +5,7 @@ import { databasePath } from '../db/config.js';
 import type { Database, SessionStatus } from '../db/database.js';
 import { migrate } from '../db/migrator.js';
 import { listCodexStoredSessions, readCodexStoredSession } from './codex-session-source.js';
-import { readCodexWorkerUsage } from './codex-local-session-store.js';
+import { readCodexLiveSession, readCodexWorkerUsage, type CodexDirectiveSummary, type CodexLiveSessionSnapshot, type CodexOffloadSummary } from './codex-local-session-store.js';
 
 export type SessionWorkerUsage = {
   externalThreadId: string;
@@ -25,7 +25,10 @@ export type SessionWorkerUsage = {
 type Source = {
   list(): ReturnType<typeof listCodexStoredSessions>;
   read(id: string): ReturnType<typeof readCodexStoredSession>;
+  telemetry?(id: string): Promise<Pick<CodexLiveSessionSnapshot, 'workers' | 'offload' | 'directives'>>;
   workers?(id: string): Promise<SessionWorkerUsage[]>;
+  offload?(id: string): Promise<CodexOffloadSummary>;
+  directives?(id: string): Promise<CodexDirectiveSummary>;
 };
 
 const stableId = (prefix: string, value: string) => `${prefix}-${createHash('sha256').update(value).digest('hex').slice(0, 24)}`;
@@ -50,6 +53,35 @@ async function review(database: Kysely<Database>, id: string) {
   const groups = await database.selectFrom('session_events').select(['event_type as type'])
     .select(expression => expression.fn.count<number>('id').as('count'))
     .where('session_id', '=', id).groupBy('event_type').execute();
+  const offloadRow = await database.selectFrom('session_offload_summaries').selectAll().where('session_id', '=', id).executeTakeFirst();
+  const processRows = await database.selectFrom('session_offload_processes').selectAll().where('session_id', '=', id)
+    .orderBy('output_bytes', 'desc').orderBy('batch_count', 'desc').execute();
+  const directiveRows = await database.selectFrom('session_directive_episodes as episode')
+    .innerJoin('session_interactions as interaction', 'interaction.id', 'episode.opening_interaction_id')
+    .select([
+      'episode.id', 'episode.sequence_number as sequenceNumber', 'episode.status', 'episode.started_at as startedAt',
+      'episode.completed_at as completedAt', 'episode.classification_confidence as classificationConfidence',
+      'episode.preparation_questions as preparationQuestions', 'episode.preparation_context as preparationContext',
+      'episode.preparation_approvals as preparationApprovals', 'episode.correction_count as corrections',
+      'episode.preparation_pattern_references as preparationPatternReferences',
+      'episode.context_tokens_at_start as contextTokensAtStart', 'episode.context_window as contextWindow',
+      'episode.peak_context_percent as peakContextPercent', 'episode.agents_references as agentsReferences',
+      'episode.skill_references as skillReferences', 'episode.first_pattern_latency_ms as firstPatternLatencyMs',
+      'episode.pattern_before_first_change as patternBeforeFirstChange', 'episode.tool_calls as toolCalls',
+      'episode.file_changes as fileChanges', 'episode.web_searches as webSearches', 'episode.delegations',
+      'episode.compactions', 'episode.verification_batches as verificationBatches',
+      'interaction.source_interaction_key as openingInteractionKey', 'interaction.kind as openingKind',
+      'interaction.input_tokens as openingInputTokens', 'interaction.cached_input_tokens as openingCachedInputTokens',
+      'interaction.output_tokens as openingOutputTokens',
+    ]).where('episode.session_id', '=', id).orderBy('episode.sequence_number').execute();
+  const directiveSkills = await database.selectFrom('session_episode_skills as skill')
+    .innerJoin('session_directive_episodes as episode', 'episode.id', 'skill.episode_id')
+    .select(['skill.episode_id as episodeId', 'skill.skill_name as skillName'])
+    .where('episode.session_id', '=', id).orderBy('skill.skill_name').execute();
+  const preparationSkills = await database.selectFrom('session_episode_preparation_skills as skill')
+    .innerJoin('session_directive_episodes as episode', 'episode.id', 'skill.episode_id')
+    .select(['skill.episode_id as episodeId', 'skill.skill_name as skillName'])
+    .where('episode.session_id', '=', id).orderBy('skill.skill_name').execute();
   const workerRows = await database.selectFrom('session_threads as thread')
     .innerJoin('session_turns as turn', 'turn.thread_id', 'thread.id')
     .innerJoin('turn_usage_snapshots as usage', 'usage.turn_id', 'turn.id')
@@ -81,13 +113,81 @@ async function review(database: Kysely<Database>, id: string) {
     for (const key of ['inputTokens', 'cachedInputTokens', 'cacheWriteInputTokens', 'outputTokens', 'reasoningOutputTokens', 'totalTokens'] as const) aggregate[key] += worker[key] ?? 0;
     byModel.set(model, aggregate);
   }
-  return { ...row, evidence: Object.fromEntries(groups.map(group => [group.type, Number(group.count)])), usageAvailable: workers.length > 0, workerUsage: workers, modelUsage: [...byModel.values()] };
+  const offload = offloadRow ? {
+    available: true,
+    shellBatches: offloadRow.shell_batches,
+    candidateBatches: offloadRow.candidate_batches,
+    associatedInputTokens: offloadRow.associated_input_tokens,
+    associatedCachedInputTokens: offloadRow.associated_cached_input_tokens,
+    associatedOutputTokens: offloadRow.associated_output_tokens,
+    associatedTotalTokens: offloadRow.associated_total_tokens,
+    categories: {
+      verification: offloadRow.verification_batches,
+      build: offloadRow.build_batches,
+      formatting: offloadRow.formatting_batches,
+      script: offloadRow.script_batches,
+      monitoring: offloadRow.monitoring_batches,
+    },
+    processPatterns: processRows.map(pattern => ({
+      key: pattern.signature_key, label: pattern.label, runner: pattern.runner, operation: pattern.operation,
+      batchCount: pattern.batch_count, successCount: pattern.success_count, failureCount: pattern.failure_count,
+      unknownCount: pattern.unknown_count, outputBytes: pattern.output_bytes,
+      maximumOutputBytes: pattern.maximum_output_bytes, outputMode: pattern.output_mode,
+      recommendation: pattern.recommendation,
+    })),
+  } : {
+    available: false,
+    shellBatches: 0,
+    candidateBatches: 0,
+    associatedInputTokens: 0,
+    associatedCachedInputTokens: 0,
+    associatedOutputTokens: 0,
+    associatedTotalTokens: 0,
+    categories: { verification: 0, build: 0, formatting: 0, script: 0, monitoring: 0 }, processPatterns: [],
+  };
+  const directives = directiveRows.length ? {
+    available: true, classifierVersion: 2,
+    episodes: directiveRows.map(episode => ({
+      key: episode.id, sequenceNumber: episode.sequenceNumber, status: episode.status,
+      startedAt: episode.startedAt, completedAt: episode.completedAt,
+      openingInteractionKey: episode.openingInteractionKey,
+      openingKind: episode.openingKind,
+      classificationConfidence: episode.classificationConfidence,
+      preparation: {
+        questions: episode.preparationQuestions, context: episode.preparationContext,
+        approvals: episode.preparationApprovals, patternReferences: episode.preparationPatternReferences,
+        skillsUsed: preparationSkills.filter(skill => skill.episodeId === episode.id).map(skill => skill.skillName),
+      },
+      corrections: episode.corrections,
+      context: {
+        tokensAtStart: episode.contextTokensAtStart ?? 0, window: episode.contextWindow,
+        percentAtStart: episode.contextWindow && episode.contextTokensAtStart !== null ? Math.min(100, episode.contextTokensAtStart / episode.contextWindow * 100) : null,
+        peakPercent: episode.peakContextPercent,
+      },
+      usageAtStart: {
+        inputTokens: episode.openingInputTokens ?? 0,
+        cachedInputTokens: episode.openingCachedInputTokens ?? 0,
+        outputTokens: episode.openingOutputTokens ?? 0,
+      },
+      discovery: {
+        agentsReferences: episode.agentsReferences, skillReferences: episode.skillReferences,
+        skillsUsed: directiveSkills.filter(skill => skill.episodeId === episode.id).map(skill => skill.skillName),
+        firstPatternLatencyMs: episode.firstPatternLatencyMs,
+        patternBeforeFirstChange: episode.patternBeforeFirstChange === null ? null : Boolean(episode.patternBeforeFirstChange),
+      },
+      execution: {
+        toolCalls: episode.toolCalls, fileChanges: episode.fileChanges, webSearches: episode.webSearches,
+        delegations: episode.delegations, compactions: episode.compactions, verificationBatches: episode.verificationBatches,
+      },
+    })),
+  } : { available: false, classifierVersion: 2, episodes: [] };
+  return { ...row, evidence: Object.fromEntries(groups.map(group => [group.type, Number(group.count)])), usageAvailable: workers.length > 0, workerUsage: workers, modelUsage: [...byModel.values()], offload, directives };
 }
 
 export function createSessionManager({
   root,
   database,
-  source = { list: listCodexStoredSessions, read: readCodexStoredSession, workers: readCodexWorkerUsage },
+  source = { list: listCodexStoredSessions, read: readCodexStoredSession, telemetry: readCodexLiveSession, workers: readCodexWorkerUsage },
 }: { root: string; database?: Kysely<Database>; source?: Source }) {
   const path = databasePath(root);
   if (!database) migrate({ path });
@@ -98,10 +198,15 @@ export function createSessionManager({
     return (await Promise.all(rows.map(row => review(db, row.id)))).filter(Boolean);
   }
 
-  async function importCodex(externalId: string) {
+  const imports = new Map<string, Promise<Awaited<ReturnType<typeof review>>>>();
+
+  async function importCodexUnlocked(externalId: string) {
     if (!/^[a-zA-Z0-9-]{8,100}$/.test(externalId)) throw new Error('Invalid Codex session ID.');
     const thread = await source.read(externalId);
-    const workers = source.workers ? await source.workers(externalId) : [];
+    const telemetry = source.telemetry ? await source.telemetry(externalId) : null;
+    const workers = telemetry?.workers ?? (source.workers ? await source.workers(externalId) : []);
+    const offload = telemetry?.offload ?? (source.offload ? await source.offload(externalId) : null);
+    const directives = telemetry?.directives ?? (source.directives ? await source.directives(externalId) : null);
     const id = stableId('session', `codex:${externalId}`);
     const threadId = stableId('thread', `codex:${externalId}`);
     const safeTitle = `Codex session ${externalId.slice(0, 8)}`;
@@ -221,6 +326,94 @@ export function createSessionManager({
         })).execute();
         await transaction.updateTable('session_turns').set({ model: worker.model, reasoning_level: worker.reasoningLevel }).where('id', '=', usageTurnId).execute();
       }
+      if (offload) await transaction.insertInto('session_offload_summaries').values({
+        session_id: id, measurement: 'exact-stored', shell_batches: offload.shellBatches,
+        candidate_batches: offload.candidateBatches, associated_input_tokens: offload.associatedInputTokens,
+        associated_cached_input_tokens: offload.associatedCachedInputTokens,
+        associated_output_tokens: offload.associatedOutputTokens, associated_total_tokens: offload.associatedTotalTokens,
+        verification_batches: offload.categories.verification, build_batches: offload.categories.build,
+        formatting_batches: offload.categories.formatting, script_batches: offload.categories.script,
+        monitoring_batches: offload.categories.monitoring, observed_at: observedAt,
+      }).onConflict(conflict => conflict.column('session_id').doUpdateSet({
+        measurement: 'exact-stored', shell_batches: offload.shellBatches,
+        candidate_batches: offload.candidateBatches, associated_input_tokens: offload.associatedInputTokens,
+        associated_cached_input_tokens: offload.associatedCachedInputTokens,
+        associated_output_tokens: offload.associatedOutputTokens, associated_total_tokens: offload.associatedTotalTokens,
+        verification_batches: offload.categories.verification, build_batches: offload.categories.build,
+        formatting_batches: offload.categories.formatting, script_batches: offload.categories.script,
+        monitoring_batches: offload.categories.monitoring, observed_at: observedAt,
+      })).execute();
+      if (offload) {
+        await transaction.deleteFrom('session_offload_processes').where('session_id', '=', id).execute();
+        if (offload.processPatterns.length) await transaction.insertInto('session_offload_processes').values(offload.processPatterns.map(pattern => ({
+          session_id: id, signature_key: pattern.key, runner: pattern.runner, operation: pattern.operation,
+          label: pattern.label, batch_count: pattern.batchCount, success_count: pattern.successCount,
+          failure_count: pattern.failureCount, unknown_count: pattern.unknownCount,
+          output_bytes: pattern.outputBytes, maximum_output_bytes: pattern.maximumOutputBytes,
+          output_mode: pattern.outputMode, recommendation: pattern.recommendation, classifier_version: 1,
+        }))).execute();
+      }
+      if (directives) {
+        // Directive episodes are a derived projection. Rebuild the projection
+        // when the classifier changes so stale, no-change candidates cannot
+        // remain visible as scored directives.
+        await transaction.deleteFrom('session_interactions').where('session_id', '=', id).execute();
+        for (const interaction of directives.interactions) {
+          const interactionId = stableId('interaction', `codex:${externalId}:${interaction.sourceKey}`);
+          await transaction.insertInto('session_interactions').values({
+            id: interactionId, session_id: id, source_interaction_key: interaction.sourceKey,
+            sequence_number: interaction.sequenceNumber, kind: interaction.kind, occurred_at: interaction.occurredAt,
+            classifier_version: directives.classifierVersion, confidence: interaction.confidence,
+            context_tokens: interaction.contextTokens, context_window: interaction.contextWindow,
+            input_tokens: interaction.inputTokens, cached_input_tokens: interaction.cachedInputTokens,
+            output_tokens: interaction.outputTokens,
+          }).onConflict(conflict => conflict.columns(['session_id', 'source_interaction_key']).doUpdateSet({
+            sequence_number: interaction.sequenceNumber, kind: interaction.kind, occurred_at: interaction.occurredAt,
+            classifier_version: directives.classifierVersion, confidence: interaction.confidence,
+            context_tokens: interaction.contextTokens, context_window: interaction.contextWindow,
+            input_tokens: interaction.inputTokens, cached_input_tokens: interaction.cachedInputTokens,
+            output_tokens: interaction.outputTokens,
+          })).execute();
+        }
+        for (const episode of directives.episodes) {
+          const episodeId = stableId('episode', `codex:${externalId}:${episode.key}`);
+          const openingInteractionId = stableId('interaction', `codex:${externalId}:${episode.openingInteractionKey}`);
+          await transaction.insertInto('session_directive_episodes').values({
+            id: episodeId, session_id: id, opening_interaction_id: openingInteractionId,
+            sequence_number: episode.sequenceNumber, status: episode.status, started_at: episode.startedAt,
+            completed_at: episode.completedAt, classification_confidence: episode.classificationConfidence,
+            measurement: 'derived', preparation_questions: episode.preparation.questions,
+            preparation_context: episode.preparation.context, preparation_approvals: episode.preparation.approvals,
+            preparation_pattern_references: episode.preparation.patternReferences,
+            correction_count: episode.corrections, context_tokens_at_start: episode.context.tokensAtStart,
+            context_window: episode.context.window, peak_context_percent: episode.context.peakPercent,
+            agents_references: episode.discovery.agentsReferences, skill_references: episode.discovery.skillReferences,
+            first_pattern_latency_ms: episode.discovery.firstPatternLatencyMs,
+            pattern_before_first_change: episode.discovery.patternBeforeFirstChange === null ? null : episode.discovery.patternBeforeFirstChange ? 1 : 0,
+            tool_calls: episode.execution.toolCalls, file_changes: episode.execution.fileChanges,
+            web_searches: episode.execution.webSearches, delegations: episode.execution.delegations,
+            compactions: episode.execution.compactions, verification_batches: episode.execution.verificationBatches,
+            classifier_version: directives.classifierVersion,
+          }).onConflict(conflict => conflict.columns(['session_id', 'sequence_number']).doUpdateSet({
+            status: episode.status, completed_at: episode.completedAt,
+            classification_confidence: episode.classificationConfidence, measurement: 'derived',
+            preparation_questions: episode.preparation.questions, preparation_context: episode.preparation.context,
+            preparation_approvals: episode.preparation.approvals, correction_count: episode.corrections,
+            preparation_pattern_references: episode.preparation.patternReferences,
+            context_tokens_at_start: episode.context.tokensAtStart, context_window: episode.context.window,
+            peak_context_percent: episode.context.peakPercent, agents_references: episode.discovery.agentsReferences,
+            skill_references: episode.discovery.skillReferences, first_pattern_latency_ms: episode.discovery.firstPatternLatencyMs,
+            pattern_before_first_change: episode.discovery.patternBeforeFirstChange === null ? null : episode.discovery.patternBeforeFirstChange ? 1 : 0,
+            tool_calls: episode.execution.toolCalls, file_changes: episode.execution.fileChanges,
+            web_searches: episode.execution.webSearches, delegations: episode.execution.delegations,
+            compactions: episode.execution.compactions, verification_batches: episode.execution.verificationBatches,
+            classifier_version: directives.classifierVersion,
+          })).execute();
+          await transaction.deleteFrom('session_episode_skills').where('episode_id', '=', episodeId).execute();
+          if (episode.discovery.skillsUsed.length) await transaction.insertInto('session_episode_skills').values(episode.discovery.skillsUsed.map(skillName => ({ episode_id: episodeId, skill_name: skillName }))).execute();
+          if (episode.preparation.skillsUsed.length) await transaction.insertInto('session_episode_preparation_skills').values(episode.preparation.skillsUsed.map(skillName => ({ episode_id: episodeId, skill_name: skillName }))).execute();
+        }
+      }
       if (newEvents.length) await transaction.insertInto('session_events').values(newEvents.map(({ turn, item }) => ({
         id: randomUUID(), session_id: id, thread_id: threadId, turn_id: stableId('turn', `${externalId}:${turn.id}`),
         sequence_number: ++nextSequence, source_event_key: `import:${turn.id}:${item.id}`, event_type: item.type,
@@ -228,6 +421,13 @@ export function createSessionManager({
       }))).execute();
     });
     return review(db, id);
+  }
+
+  function importCodex(externalId: string) {
+    const previous = imports.get(externalId) ?? Promise.resolve(null);
+    const current = previous.catch(() => null).then(() => importCodexUnlocked(externalId));
+    imports.set(externalId, current);
+    return current.finally(() => { if (imports.get(externalId) === current) imports.delete(externalId); });
   }
 
   return {

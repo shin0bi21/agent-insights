@@ -128,7 +128,7 @@ test('live Codex telemetry stays behind an injectable API boundary', async () =>
   const app = createBenchmarkApp({
     root: process.cwd(),
     manager: { list: () => [], get: () => null, start: () => null },
-    readLiveSession: async id => ({ externalId: id, title: 'Live', repositoryName: 'repo', status: 'active', observedAt: '2026-08-19T00:00:00.000Z', contextWindow: 100, contextTokens: 40, contextPercent: 40, turnCount: 2, completedTurnCount: 1, evidence: {}, guidance: { available: true, agentsReads: 0, skillReads: 0, skillsUsed: [], promptCount: 0, promptsWithSkillRead: 0, averageSkillReadLatencyMs: null, currentPromptHasSkillRead: null }, workers: [] }),
+    readLiveSession: async id => ({ externalId: id, title: 'Live', repositoryName: 'repo', status: 'active', observedAt: '2026-08-19T00:00:00.000Z', contextWindow: 100, contextTokens: 40, contextPercent: 40, turnCount: 2, completedTurnCount: 1, evidence: {}, guidance: { available: true, agentsReads: 0, skillReads: 0, skillsUsed: [], promptCount: 0, promptsWithSkillRead: 0, averageSkillReadLatencyMs: null, currentPromptHasSkillRead: null }, offload: { available: true, shellBatches: 0, candidateBatches: 0, associatedInputTokens: 0, associatedCachedInputTokens: 0, associatedOutputTokens: 0, associatedTotalTokens: 0, categories: { verification: 0, build: 0, formatting: 0, script: 0, monitoring: 0 }, processPatterns: [] }, directives: { available: true, classifierVersion: 2, interactions: [], episodes: [] }, workers: [] }),
   });
   await withApp(app, async origin => {
     const response = await fetch(`${origin}/api/session-sources/codex/sessions/thread-1234/live`);
