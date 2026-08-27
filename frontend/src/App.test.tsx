@@ -45,7 +45,7 @@ test('offers session review and benchmark workflows from the homepage', () => {
   expect(screen.queryByRole('button', { name: 'Live Session' })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /Watch and review agent work/ }));
   expect(screen.getByRole('heading', { name: 'Session Review' })).toBeInTheDocument();
-  expect(screen.getByRole('heading', { name: 'Watch work in progress' })).toBeInTheDocument();
+  expect(screen.getByText('Monitor an existing session or review a completed session.')).toBeInTheDocument();
 });
 
 test('shows repository readiness inside the repository section', async () => {
