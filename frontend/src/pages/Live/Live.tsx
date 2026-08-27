@@ -8,6 +8,7 @@ import { eyebrowClass, mutedTextClass, pageTitleClass, panelClass } from '../../
 const buttonClass = 'rounded-lg bg-[#6f56d9] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-wait disabled:opacity-60 dark:bg-[#a58cff] dark:text-[#17131f]';
 const secondaryButtonClass = 'rounded-lg border border-[#c8c1df] px-4 py-2.5 text-sm font-semibold dark:border-[#4d455e]';
 const number = new Intl.NumberFormat();
+const compactNumber = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 });
 type WorkerRange = 'active' | 'today' | 'week' | 'month' | 'all';
 type SessionRange = 'five' | 'hour' | 'day' | 'week' | 'month' | 'all';
 
@@ -158,10 +159,10 @@ export default function Live({ embedded = false }: { embedded?: boolean }) {
   const usageGroups = [...visibleWorkers.reduce((groups, worker) => {
     const scope = worker.parentExternalThreadId === null ? 'Main agent' : 'Subagents';
     const key = `${scope}:${worker.model ?? 'Unattributed'}:${worker.reasoningLevel ?? 'unknown'}`;
-    const current = groups.get(key) ?? { key, scope, model: worker.model ?? 'Unattributed', reasoning: worker.reasoningLevel ?? 'unknown', workers: 0, inputTokens: 0, cachedInputTokens: 0, totalTokens: 0, outputTokens: 0, running: 0 };
-    current.workers += 1; current.inputTokens += worker.inputTokens; current.cachedInputTokens += worker.cachedInputTokens; current.totalTokens += worker.totalTokens; current.outputTokens += worker.outputTokens; current.running += worker.active ? 1 : 0;
+    const current = groups.get(key) ?? { key, scope, model: worker.model ?? 'Unattributed', reasoning: worker.reasoningLevel ?? 'unknown', workers: 0, inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, running: 0 };
+    current.workers += 1; current.inputTokens += worker.inputTokens; current.cachedInputTokens += worker.cachedInputTokens; current.outputTokens += worker.outputTokens; current.running += worker.active ? 1 : 0;
     groups.set(key, current); return groups;
-  }, new Map<string, { key: string; scope: string; model: string; reasoning: string; workers: number; inputTokens: number; cachedInputTokens: number; totalTokens: number; outputTokens: number; running: number }>()).values()];
+  }, new Map<string, { key: string; scope: string; model: string; reasoning: string; workers: number; inputTokens: number; cachedInputTokens: number; outputTokens: number; running: number }>()).values()];
   const usageTotals = (['Main agent', 'Subagents'] as const).map(scope => {
     const workers = visibleWorkers.filter(worker => (worker.parentExternalThreadId === null ? 'Main agent' : 'Subagents') === scope);
     return {
@@ -170,7 +171,6 @@ export default function Live({ embedded = false }: { embedded?: boolean }) {
       running: workers.filter(worker => worker.active).length,
       inputTokens: workers.reduce((sum, worker) => sum + worker.inputTokens, 0),
       cachedInputTokens: workers.reduce((sum, worker) => sum + worker.cachedInputTokens, 0),
-      totalTokens: workers.reduce((sum, worker) => sum + worker.totalTokens, 0),
       outputTokens: workers.reduce((sum, worker) => sum + worker.outputTokens, 0),
       details: usageGroups.filter(group => group.scope === scope),
     };
@@ -244,12 +244,12 @@ export default function Live({ embedded = false }: { embedded?: boolean }) {
             <div className="mt-4 grid gap-3">{usageTotals.map(group => <div className="rounded-xl border border-[#dedbea] dark:border-[#373241]" key={group.scope}>
               <button aria-expanded={expandedUsage[group.scope]} className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 p-4 text-left" onClick={() => setExpandedUsage(current => ({ ...current, [group.scope]: !current[group.scope] }))} type="button">
                 <span aria-hidden="true" className={`text-sm transition-transform ${expandedUsage[group.scope] ? 'rotate-90' : ''}`}>▶</span>
-                <span><span className="flex flex-wrap items-center gap-2"><strong>{group.scope}</strong>{group.running > 0 && <span className="rounded-full bg-[#e8f6eb] px-2 py-0.5 text-[10px] font-semibold text-[#236534] dark:bg-[#203a28] dark:text-[#9ce0ad]">{group.running} running</span>}</span><span className={`mt-1 block text-xs ${mutedTextClass}`}>{group.workers} worker{group.workers === 1 ? '' : 's'} · {number.format(group.inputTokens)} input</span><span className={`mt-1 block text-xs ${mutedTextClass}`}>{number.format(group.cachedInputTokens)} cached · {number.format(Math.max(0, group.inputTokens - group.cachedInputTokens))} uncached · {cacheHitRate(group.inputTokens, group.cachedInputTokens)} hit</span></span>
-                <span className="text-right"><strong>{number.format(group.totalTokens)}</strong><span className={`mt-1 block text-xs ${mutedTextClass}`}>{number.format(group.outputTokens)} output</span></span>
+                <span><span className="flex flex-wrap items-center gap-2"><strong>{group.scope}</strong>{group.running > 0 && <span className="rounded-full bg-[#e8f6eb] px-2 py-0.5 text-[10px] font-semibold text-[#236534] dark:bg-[#203a28] dark:text-[#9ce0ad]">{group.running} running</span>}</span><span className={`mt-1 block text-xs ${mutedTextClass}`}>{group.details.length === 1 ? `${group.details[0].model} · ${group.details[0].reasoning} reasoning · ` : ''}{group.workers} worker{group.workers === 1 ? '' : 's'}</span></span>
+                <span className="text-right"><strong className="text-lg">{compactNumber.format(group.inputTokens)}</strong><span className={`mt-0.5 block text-xs ${mutedTextClass}`}>input tokens · {cacheHitRate(group.inputTokens, group.cachedInputTokens)} cached</span></span>
               </button>
               {expandedUsage[group.scope] && <div className="border-t border-[#dedbea] p-3 dark:border-[#373241]">
                 <p className={`mb-2 text-[11px] font-semibold uppercase tracking-wide ${mutedTextClass}`}>Model and reasoning breakdown</p>
-                <div className="grid gap-2">{group.details.map(detail => <div className="grid grid-cols-[1fr_auto] gap-4 rounded-lg bg-[#f4f1fc] p-3 dark:bg-[#27222f]" key={detail.key}><span className="text-sm"><strong>{detail.model}</strong><span className={`mt-1 block text-xs ${mutedTextClass}`}>{detail.reasoning} reasoning · {detail.workers} worker{detail.workers === 1 ? '' : 's'} · {number.format(detail.inputTokens)} input</span><span className={`mt-1 block text-xs ${mutedTextClass}`}>{number.format(detail.cachedInputTokens)} cached · {number.format(Math.max(0, detail.inputTokens - detail.cachedInputTokens))} uncached · {cacheHitRate(detail.inputTokens, detail.cachedInputTokens)} hit</span></span><span className="text-right text-sm"><strong>{number.format(detail.totalTokens)}</strong><span className={`mt-1 block text-xs ${mutedTextClass}`}>{number.format(detail.outputTokens)} output</span></span></div>)}</div>
+                <div className="grid gap-2">{group.details.map(detail => <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg bg-[#f4f1fc] p-3 dark:bg-[#27222f]" key={detail.key}><span className="text-sm"><strong>{detail.model}</strong><span className={`mt-1 block text-xs ${mutedTextClass}`}>{detail.reasoning} reasoning · {detail.workers} worker{detail.workers === 1 ? '' : 's'}</span></span><span className="flex flex-wrap gap-x-5 gap-y-2 text-right text-sm"><span><strong className="block">{compactNumber.format(detail.cachedInputTokens)}</strong><span className={`text-xs ${mutedTextClass}`}>Cached input</span></span><span><strong className="block">{compactNumber.format(Math.max(0, detail.inputTokens - detail.cachedInputTokens))}</strong><span className={`text-xs ${mutedTextClass}`}>New input</span></span><span><strong className="block">{compactNumber.format(detail.outputTokens)}</strong><span className={`text-xs ${mutedTextClass}`}>Output</span></span></span></div>)}</div>
               </div>}
             </div>)}{!usageTotals.length && <div className="rounded-xl border border-dashed border-[#c8c1df] p-5 text-sm dark:border-[#4d455e]"><strong>No usage in this period</strong><p className={`mt-2 ${mutedTextClass}`}>Choose a wider range to see historical usage.</p></div>}</div>
           </section>
