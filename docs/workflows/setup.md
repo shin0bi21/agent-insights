@@ -16,6 +16,8 @@ npm run db:migrate
 npm run db:status
 ```
 
+Start the host application with `npm start` whenever Session Review should read sessions from the desktop Codex application. The preflight reports the resolved Codex home and stored-session count before the web server starts.
+
 The SQLite database is created under ignored `data/` storage by default. Do not commit database, WAL, run, log, or provider credential files.
 
 Validate the checkout before a real run:
@@ -33,6 +35,8 @@ Use a dry run to validate a scenario and matrix without spending provider tokens
 
 ## Docker setup
 
+Docker is an isolated alternative for Benchmark Lab and container-owned Codex usage. It does not mount the host Codex home because that directory contains credentials and private session data. Use the native `npm start` path for host Session Review.
+
 Docker is an alternative to installing Node.js dependencies on the host. Copy the non-secret template and replace both placeholder paths with absolute host paths:
 
 ```bash
@@ -44,7 +48,7 @@ docker compose build
 
 `AGENT_INSIGHTS_REPOSITORY_PATH` identifies the one attached Git repository. `AGENT_INSIGHTS_RUNTIME_PATH` is a dedicated disposable worktree directory. Both are mounted at the same absolute paths inside the container; do not point either value at a home directory or broad source root.
 
-Authenticate the currently installed Codex provider into its dedicated named volume:
+Authenticate the container-installed Codex provider into its dedicated named volume:
 
 ```bash
 docker compose run --rm app codex
@@ -58,6 +62,8 @@ docker compose ps
 ```
 
 Open `http://127.0.0.1:4173`. The container is Linux, so the macOS folder picker is unavailable; enter the exact `AGENT_INSIGHTS_REPOSITORY_PATH` value and select **Connect**.
+
+Sessions shown by this container come only from its `codex_state` volume. Resetting that volume resets the container's session list; it does not affect or import sessions from the desktop Codex application.
 
 If the selected target repository or scenario launches Docker, set this only after confirming that the repository and prompt are trusted:
 

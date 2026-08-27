@@ -7,10 +7,16 @@ Use [Setup](setup.md) for first-time requirements and installation.
 Production-style local build:
 
 ```bash
-npm run web
+npm start
 ```
 
-Open `http://127.0.0.1:4173`.
+This is the canonical Session Review startup path. It verifies the host Codex session source, then opens Agent Insights at `http://127.0.0.1:4173`. `npm run web` starts the same production-style application without the source preflight.
+
+Check host-session discovery without starting the web service:
+
+```bash
+npm run sessions:check
+```
 
 Development watchers:
 
@@ -38,6 +44,8 @@ Preview scenario and matrix configuration with `--dry-run` before a real run. Do
 
 ## Docker lifecycle
 
+Docker uses an isolated `CODEX_HOME` in the `codex_state` volume. It can review sessions created inside that container-owned provider state, but it intentionally does not receive credentials or private sessions from the host Codex home. Use `npm start` when Session Review must show sessions from the desktop Codex application.
+
 After completing [Docker setup](setup.md), use one consistent Compose file set for a session:
 
 ```bash
@@ -61,6 +69,6 @@ docker compose exec app codex --version
 docker compose exec app docker compose version
 ```
 
-`app_data` retains SQLite and `codex_state` retains provider authentication across ordinary restarts and `docker compose down`. Their default engine-level names are `agent-insights_app_data` and `agent-insights_codex_state`. Set `AGENT_INSIGHTS_APP_DATA_VOLUME` or `AGENT_INSIGHTS_CODEX_STATE_VOLUME` only when intentionally selecting different volumes. Deleting volumes erases that local state and is not a routine restart operation.
+`app_data` retains SQLite and `codex_state` retains container-local provider authentication and sessions across ordinary restarts and `docker compose down`. Their default engine-level names are `agent-insights_app_data` and `agent-insights_codex_state`. Set `AGENT_INSIGHTS_APP_DATA_VOLUME` or `AGENT_INSIGHTS_CODEX_STATE_VOLUME` only when intentionally selecting different volumes. Deleting volumes erases that isolated local state and is not a routine restart operation.
 
 For a trusted target-owned Docker scenario, set `AGENT_INSIGHTS_DOCKER_SOCKET_PATH=/var/run/docker.sock` in `.env` and recreate the service. Leave it as `/dev/null` otherwise. The host and container runtime paths must remain identical; changing `.env` requires recreating the service.

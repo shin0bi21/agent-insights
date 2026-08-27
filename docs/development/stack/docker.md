@@ -17,6 +17,7 @@ Docker is an optional packaging boundary for the existing application, not a sec
 - Mount exactly the selected repository rather than a home directory or broad source root.
 - Mount the runtime directory at the same absolute path on host and container. Nested Docker receives host-resolvable worktree paths from that directory.
 - Keep SQLite and provider state in separate named volumes. Explicit `AGENT_INSIGHTS_APP_DATA_VOLUME` and `AGENT_INSIGHTS_CODEX_STATE_VOLUME` overrides opt into different state. Never bake either into an image or commit them.
+- Keep the host Codex home outside the container boundary. It contains credentials and private sessions; native `npm start` owns desktop Session Review, while Docker sees only its isolated `codex_state` volume.
 - Keep the Docker socket unusable by default with `AGENT_INSIGHTS_DOCKER_SOCKET_PATH=/dev/null`. Opting into `/var/run/docker.sock` is privileged and only applies to trusted scenarios or repositories that launch Docker.
 - Pin provider tooling through a build argument and document upgrades. Provider installation belongs in a replaceable image layer; application code remains provider-neutral.
 - Run compiled backend code in production mode. Native development continues to use `tsx` and Vite watchers.
