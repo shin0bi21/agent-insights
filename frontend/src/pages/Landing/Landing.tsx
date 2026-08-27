@@ -9,7 +9,7 @@ export default function Landing({ onNavigate }: { onNavigate: (view: Destination
   ];
   return (
     <section aria-labelledby="home-title">
-      <p className={eyebrowClass}>AGENT AUTOMATION SCORE</p>
+      <p className={eyebrowClass}>AGENT INSIGHTS</p>
       <h1 className="mt-3 max-w-[950px] text-[clamp(2.8rem,6vw,6rem)] leading-[.96] tracking-[-.055em]" id="home-title">Choose how you want to measure agent work.</h1>
       <p className={`mt-6 max-w-[720px] text-[1.05rem] leading-7 ${mutedTextClass}`}>Watch and review real agent sessions, or run a reproducible sandbox benchmark.</p>
       <div className="mt-12 grid grid-cols-2 gap-5 max-[850px]:grid-cols-1" aria-label="Choose a mode">

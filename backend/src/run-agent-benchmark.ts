@@ -332,7 +332,7 @@ async function main() {
   if (!baseRef) throw new Error('A scenario baseRef or --base-ref is required.');
   const baseSha = git(['rev-parse', `${baseRef}^{commit}`], repoRoot);
   if (manifest.guidance) git(['rev-parse', `${manifest.guidance.ref}^{commit}`], repoRoot);
-  const runtimeRoot = process.env.AAS_RUNTIME_PATH ?? process.env.RAS_RUNTIME_PATH ?? tmpdir();
+  const runtimeRoot = process.env.AGENT_INSIGHTS_RUNTIME_PATH ?? tmpdir();
   const outputRoot = resolve(options.outputDir ?? resolve(runtimeRoot, `${manifest.id}-benchmark-${timestamp()}`));
   const matrix = models.flatMap(model => reasoningEfforts.flatMap(reasoningEffort => (
     Array.from({ length: repetitions }, (_, index) => ({ model, reasoningEffort, repetition: index + 1 }))

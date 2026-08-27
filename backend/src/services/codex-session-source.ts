@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { basename } from 'node:path';
 import { createInterface } from 'node:readline';
 
-const CLIENT_INFO = { name: 'agent-automation-score', title: 'Agent Automation Score', version: '0.1.0' };
+const CLIENT_INFO = { name: 'agent-insights', title: 'Agent Insights', version: '0.1.0' };
 type JsonObject = Record<string, unknown>;
 type Options = { executable?: string; timeoutMs?: number };
 type RpcClient = { request(method: string, params?: JsonObject): Promise<unknown>; close(): void };

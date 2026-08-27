@@ -1,4 +1,4 @@
-# Agent Automation Score backend
+# Agent Insights backend
 
 Express + TypeScript + Kysely/SQLite localhost service for repository discovery, session-source integration, agent execution, evaluation, and report persistence.
 

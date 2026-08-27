@@ -15,8 +15,7 @@ const emptyRun: StartRunInput = {
   featureType: 'full-stack',
   description: '',
 };
-const themeStorageKey = 'agent-automation-score-theme';
-const legacyThemeStorageKey = 'repo-score-theme';
+const themeStorageKey = 'agent-insights-theme';
 type View = 'home' | 'benchmark' | 'history' | 'sessions' | 'settings';
 type RepositoryTone = 'idle' | 'checking' | 'ready' | 'error';
 
@@ -57,7 +56,7 @@ function repositoryName(repo: string) {
 export default function App() {
   const [view, setView] = useState<View>('home');
   const [theme, setTheme] = useState<Theme>(() =>
-    (localStorage.getItem(themeStorageKey) ?? localStorage.getItem(legacyThemeStorageKey)) === 'dark'
+    localStorage.getItem(themeStorageKey) === 'dark'
       ? 'dark'
       : 'light',
   );
@@ -77,7 +76,6 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem(themeStorageKey, theme);
-    localStorage.removeItem(legacyThemeStorageKey);
   }, [theme]);
 
   const loadRuns = useCallback(async () => {

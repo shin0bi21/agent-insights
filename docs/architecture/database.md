@@ -4,7 +4,7 @@ SQLite is the durable local source of truth for run history and reports. Kysely 
 
 ## Storage boundary
 
-The default database is `data/agent-automation-score.sqlite`, which is ignored by Git. `AGENT_AUTOMATION_SCORE_DB_PATH` may point tests or packaged builds at another local file. Renamed installations continue using an existing `data/repo-automation-score.sqlite` when the new file is absent; `REPO_AUTOMATION_SCORE_DB_PATH` remains a deprecated compatibility alias so local history is not orphaned.
+The default database is `data/agent-insights.sqlite`, which is ignored by Git. `AGENT_INSIGHTS_DB_PATH` may point tests or packaged builds at another local file.
 
 The database stores repository names and Git revisions, never absolute repository paths. It stores prepared prompts and normalized evidence, not byte-for-byte provider transcripts or private chain-of-thought.
 
@@ -25,6 +25,9 @@ The database stores repository names and Git revisions, never absolute repositor
 | `session_threads`, `session_turns` | Orchestrator/subagent hierarchy and per-turn model attribution |
 | `turn_usage_snapshots`, `session_events` | Periodic usage and bounded normalized live evidence with replay keys |
 | `session_checks`, `session_changes` | Verification and repository-relative change evidence observed during a session |
+| `session_offload_summaries` | Content-free shell-batch classification and candidate-associated token estimates for frozen reviews |
+| `session_offload_processes` | Privacy-safe normalized process patterns, outcomes, output volume, and quiet-output recommendations |
+| `session_interactions`, `session_directive_episodes`, `session_episode_skills`, `session_episode_preparation_skills` | Content-free prompt telemetry snapshots, change-backed directive metrics, and prior/in-episode skill attribution |
 | `session_summary` | Durable session watermarks, counts, and latest per-turn usage projection |
 
 Live session state is rendered from memory rather than by polling SQLite after every provider event. Routine evidence is transaction-batched; lifecycle events, idle, shutdown, and terminal transitions flush immediately. `observed_sequence` and `durable_sequence` expose whether a renderer snapshot includes evidence that is not yet committed. Source event keys and sync cursors advance transactionally so reconnect replay cannot duplicate evidence or skip past a failed write.

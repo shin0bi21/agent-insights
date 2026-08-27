@@ -1,4 +1,4 @@
-name: agent-automation-score
+name: agent-insights
 
 services:
   app:
@@ -6,17 +6,17 @@ services:
       context: .
       args:
         CODEX_VERSION: ${CODEX_VERSION:-0.147.0}
-    image: agent-automation-score:local
+    image: agent-insights:local
     init: true
     ports:
-      - "127.0.0.1:${AAS_PORT:-${RAS_PORT:-4173}}:4173"
+      - "127.0.0.1:${AGENT_INSIGHTS_PORT:-4173}:4173"
     environment:
       NODE_ENV: production
-      AGENT_AUTOMATION_SCORE_HOST: 0.0.0.0
-      AGENT_AUTOMATION_SCORE_DB_PATH: /data/agent-automation-score.sqlite
+      AGENT_INSIGHTS_HOST: 0.0.0.0
+      AGENT_INSIGHTS_DB_PATH: /data/agent-insights.sqlite
       BENCHMARK_WEB_PORT: 4173
-      AAS_REPOSITORY_PATH: ${AAS_REPOSITORY_PATH:-${RAS_REPOSITORY_PATH}}
-      TMPDIR: ${AAS_RUNTIME_PATH:-${RAS_RUNTIME_PATH}}
+      AGENT_INSIGHTS_REPOSITORY_PATH: ${AGENT_INSIGHTS_REPOSITORY_PATH}
+      TMPDIR: ${AGENT_INSIGHTS_RUNTIME_PATH}
       HOME: /root
       CODEX_HOME: /root/.codex
     volumes:
@@ -27,15 +27,15 @@ services:
         source: codex_state
         target: /root/.codex
       - type: bind
-        source: ${AAS_REPOSITORY_PATH:-${RAS_REPOSITORY_PATH}}
-        target: ${AAS_REPOSITORY_PATH:-${RAS_REPOSITORY_PATH}}
+        source: ${AGENT_INSIGHTS_REPOSITORY_PATH}
+        target: ${AGENT_INSIGHTS_REPOSITORY_PATH}
       - type: bind
-        source: ${AAS_RUNTIME_PATH:-${RAS_RUNTIME_PATH}}
-        target: ${AAS_RUNTIME_PATH:-${RAS_RUNTIME_PATH}}
+        source: ${AGENT_INSIGHTS_RUNTIME_PATH}
+        target: ${AGENT_INSIGHTS_RUNTIME_PATH}
       # /dev/null keeps host Docker unavailable by default. Set this to the
       # daemon socket only for trusted repositories that launch containers.
       - type: bind
-        source: ${AAS_DOCKER_SOCKET_PATH:-${RAS_DOCKER_SOCKET_PATH:-/dev/null}}
+        source: ${AGENT_INSIGHTS_DOCKER_SOCKET_PATH:-/dev/null}
         target: /var/run/docker.sock
     cap_drop:
       - ALL
@@ -51,6 +51,6 @@ services:
 
 volumes:
   app_data:
-    name: ${AAS_APP_DATA_VOLUME:-${RAS_APP_DATA_VOLUME:-repo-automation-score_app_data}}
+    name: ${AGENT_INSIGHTS_APP_DATA_VOLUME:-agent-insights_app_data}
   codex_state:
-    name: ${AAS_CODEX_STATE_VOLUME:-${RAS_CODEX_STATE_VOLUME:-repo-automation-score_codex_state}}
+    name: ${AGENT_INSIGHTS_CODEX_STATE_VOLUME:-agent-insights_codex_state}

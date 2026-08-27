@@ -286,7 +286,7 @@ test('uses a native macOS picker without interpolating shell input', () => {
 });
 
 test('keeps configured run temporary storage outside the attached repository', () => {
-  assert.equal(validateRunTemporaryRoot('/workspace/repository', '/runtime/agent-score'), '/runtime/agent-score');
+  assert.equal(validateRunTemporaryRoot('/workspace/repository', '/runtime/agent-insights'), '/runtime/agent-insights');
   assert.throws(() => validateRunTemporaryRoot('/workspace/repository', '/workspace/repository/.runtime'), /outside the attached repository/);
 });
 
@@ -302,7 +302,7 @@ test('keeps local run artifacts and databases outside version control', () => {
 });
 
 test('run manager uses the local database instead of treating artifact folders as durable records', async () => {
-  const root = mkdtempSync(resolve(tmpdir(), 'agent-score-runs-'));
+  const root = mkdtempSync(resolve(tmpdir(), 'agent-insights-runs-'));
   try {
     const runDirectory = resolve(root, 'temporary-run-evidence/run-example');
     const candidateDirectory = resolve(runDirectory, 'provider-model-run-1');
@@ -314,7 +314,7 @@ test('run manager uses the local database instead of treating artifact folders a
     const manager = createRunManager({ root });
     assert.equal(await manager.get('run-example'), null);
     assert.deepEqual(await manager.list(), []);
-    assert.equal(existsSync(resolve(root, 'data/agent-automation-score.sqlite')), true);
+    assert.equal(existsSync(resolve(root, 'data/agent-insights.sqlite')), true);
     await manager.close();
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -322,26 +322,26 @@ test('run manager uses the local database instead of treating artifact folders a
 });
 
 test('run manager honors the configured database path', async () => {
-  const root = mkdtempSync(resolve(tmpdir(), 'agent-score-db-path-'));
+  const root = mkdtempSync(resolve(tmpdir(), 'agent-insights-db-path-'));
   const configured = resolve(root, 'custom', 'runs.sqlite');
-  const previous = process.env.AGENT_AUTOMATION_SCORE_DB_PATH;
-  process.env.AGENT_AUTOMATION_SCORE_DB_PATH = configured;
+  const previous = process.env.AGENT_INSIGHTS_DB_PATH;
+  process.env.AGENT_INSIGHTS_DB_PATH = configured;
   try {
     const manager = createRunManager({ root });
     await manager.list();
     assert.equal(existsSync(configured), true);
-    assert.equal(existsSync(resolve(root, 'data/agent-automation-score.sqlite')), false);
+    assert.equal(existsSync(resolve(root, 'data/agent-insights.sqlite')), false);
     await manager.close();
   } finally {
-    if (previous === undefined) delete process.env.AGENT_AUTOMATION_SCORE_DB_PATH;
-    else process.env.AGENT_AUTOMATION_SCORE_DB_PATH = previous;
+    if (previous === undefined) delete process.env.AGENT_INSIGHTS_DB_PATH;
+    else process.env.AGENT_INSIGHTS_DB_PATH = previous;
     rmSync(root, { recursive: true, force: true });
   }
 });
 
 test('run manager normalizes a finished process before removing its temporary directory', async () => {
-  const root = mkdtempSync(resolve(tmpdir(), 'agent-score-manager-'));
-  const repo = mkdtempSync(resolve(tmpdir(), 'agent-score-target-'));
+  const root = mkdtempSync(resolve(tmpdir(), 'agent-insights-manager-'));
+  const repo = mkdtempSync(resolve(tmpdir(), 'agent-insights-target-'));
   const child = new EventEmitter() as EventEmitter & { stdout: PassThrough; stderr: PassThrough };
   child.stdout = new PassThrough();
   child.stderr = new PassThrough();

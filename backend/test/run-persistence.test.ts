@@ -136,7 +136,7 @@ function addCandidate(run: string, repetition: number, score: number, implemente
 }
 
 test('normalizes temporary run evidence into a frontend-compatible SQLite report', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'agent-score-persistence-'));
+  const directory = mkdtempSync(join(tmpdir(), 'agent-insights-persistence-'));
   const databasePath = join(directory, 'runs.sqlite');
   try {
     const runDirectory = fixture(directory);
@@ -183,7 +183,7 @@ test('normalizes temporary run evidence into a frontend-compatible SQLite report
 });
 
 test('keeps the legacy results importer as an idempotent migration path', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'agent-score-legacy-import-'));
+  const directory = mkdtempSync(join(tmpdir(), 'agent-insights-legacy-import-'));
   const databasePath = join(directory, 'runs.sqlite');
   const resultsRoot = join(directory, 'results', 'web-runs');
   try {
@@ -207,7 +207,7 @@ test('keeps the legacy results importer as an idempotent migration path', async 
 });
 
 test('provisional runs do not expose an empty report before evaluation', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'agent-score-persistence-'));
+  const directory = mkdtempSync(join(tmpdir(), 'agent-insights-persistence-'));
   const databasePath = join(directory, 'runs.sqlite');
   try {
     migrate({ path: databasePath });
@@ -234,7 +234,7 @@ test('provisional runs do not expose an empty report before evaluation', async (
 });
 
 test('normalizes incomplete temporary evidence as interrupted without a pass', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'agent-score-persistence-'));
+  const directory = mkdtempSync(join(tmpdir(), 'agent-insights-persistence-'));
   const databasePath = join(directory, 'runs.sqlite');
   try {
     const run = join(directory, 'run-stopped');

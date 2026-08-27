@@ -46,8 +46,7 @@ export function createBenchmarkApp(options: CreateBenchmarkAppOptions): Express 
   const validateGuidance = options.validateGuidance ?? validateAutomationGuidance;
   const directoryPickerAvailable = options.directoryPickerAvailable ?? process.platform === 'darwin';
   const repositoryPath = options.repositoryPath
-    ?? process.env.AAS_REPOSITORY_PATH
-    ?? process.env.RAS_REPOSITORY_PATH
+    ?? process.env.AGENT_INSIGHTS_REPOSITORY_PATH
     ?? null;
   const probeSessions = options.probeSessions ?? probeCodexSessionSource;
   let sessions = options.sessionManager;

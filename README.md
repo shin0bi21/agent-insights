@@ -1,4 +1,4 @@
-# Agent Automation Score
+# Agent Insights
 
 Local-first application for measuring how efficiently agentic platforms execute and verify workflows. Observe real sessions without rerunning them, or use isolated repository benchmarks for controlled A/B testing.
 
@@ -22,5 +22,5 @@ Local-first application for measuring how efficiently agentic platforms execute 
 | Frontend | [frontend/README.md](frontend/README.md) |
 | Backend and API | [backend/README.md](backend/README.md) |
 | Development handbook | [docs/development/README.md](docs/development/README.md) |
-| Setup and operations | [docs/operations/README.md](docs/operations/README.md) |
+| Repository workflows | [docs/operations/README.md](docs/operations/README.md) |
 | Benchmark definitions | [benchmarks/README.md](benchmarks/README.md) |
