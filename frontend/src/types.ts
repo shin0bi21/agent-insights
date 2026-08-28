@@ -280,6 +280,8 @@ export interface RunRecord {
   skill?: string | null;
   featureType?: FeatureType;
   description: string;
+  scenarioId?: string;
+  readiness?: Pick<BenchmarkReadiness, 'status' | 'fingerprint' | 'evidence' | 'findings'> | null;
   status: RunStatus;
   artifactPath?: string;
   progress?: string;
@@ -294,6 +296,57 @@ export interface StartRunInput {
   reasoningEffort: string;
   featureType: FeatureType;
   description: string;
+  scenarioId?: string;
+}
+
+export interface BenchmarkCatalog {
+  scenarios: Array<{ id: string; version: number; title: string; featureType: FeatureType }>;
+  suites: Array<{ id: string; version: number; title: string; scenarioIds: string[] }>;
+}
+
+export interface BenchmarkReadiness {
+  status: 'ready' | 'ready-with-limitations' | 'not-evaluable';
+  contractVersion: 1;
+  fingerprint: string;
+  scenarioId: string;
+  baseRevision: string | null;
+  evidence: { guidance: string[]; patternDocuments: string[]; analogues: string[]; inferredAnalogues: string[]; verification: string[] };
+  findings: string[];
+}
+
+export interface BenchmarkTrendPoint {
+  plannedAt: string;
+  outcome: 'started' | 'skipped' | 'failed';
+  runId: string | null;
+  reason: string | null;
+  runStatus: string | null;
+  score: number | null;
+  durationMs: number | null;
+  inputTokens: number | null;
+  cachedInputTokens: number | null;
+  newInputTokens: number | null;
+  outputTokens: number | null;
+}
+
+export interface BenchmarkSchedule {
+  id: string;
+  repositoryName: string;
+  scenarioId: string;
+  scenarioVersion: number;
+  scenarioFingerprint: string;
+  provider: string;
+  model: string;
+  reasoningEffort: string;
+  featureType: FeatureType;
+  description: string;
+  intervalMinutes: number;
+  enabled: boolean;
+  consentedAt: string | null;
+  nextRunAt: string;
+  connected: boolean;
+  createdAt: string;
+  updatedAt: string;
+  trend: BenchmarkTrendPoint[];
 }
 
 export type FeatureType = 'frontend' | 'backend' | 'full-stack';

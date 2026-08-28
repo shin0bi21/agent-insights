@@ -440,6 +440,35 @@ export interface SessionSummaryView {
   reasoning_output_tokens: number | null;
 }
 
+export interface BenchmarkSchedulesTable {
+  id: string;
+  repository_name: string;
+  scenario_id: string;
+  scenario_version: number;
+  scenario_fingerprint: string;
+  provider: string;
+  model: string;
+  reasoning: string;
+  feature_type: 'frontend' | 'backend' | 'full-stack';
+  description: string;
+  interval_minutes: number;
+  enabled: SqliteBoolean;
+  token_cost_consent_at: string | null;
+  next_run_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BenchmarkScheduleOccurrencesTable {
+  id: string;
+  schedule_id: string;
+  planned_at: string;
+  outcome: 'started' | 'skipped' | 'failed';
+  run_id: string | null;
+  reason: string | null;
+  created_at: string;
+}
+
 export interface Database {
   schema_migrations: SchemaMigrationsTable;
   runs: RunsTable;
@@ -474,6 +503,8 @@ export interface Database {
   session_episode_skills: SessionEpisodeSkillsTable;
   session_episode_preparation_skills: SessionEpisodePreparationSkillsTable;
   session_summary: SessionSummaryView;
+  benchmark_schedules: BenchmarkSchedulesTable;
+  benchmark_schedule_occurrences: BenchmarkScheduleOccurrencesTable;
 }
 
 export type DatabaseId = Generated<string>;
