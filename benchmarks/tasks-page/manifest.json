@@ -2,6 +2,7 @@
   "id": "tasks-page",
   "version": 7,
   "title": "Build Staff Tasks with table and calendar views",
+  "featureType": "full-stack",
   "baseRef": "70221361e41a6956abd714130d01c6a7689a1fb9",
   "referenceRef": "e66853e2f89520f707057d47f7f938b1d563c596",
   "guidance": {
