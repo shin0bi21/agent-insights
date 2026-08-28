@@ -104,7 +104,29 @@ export interface LiveSessionSnapshot {
     }>;
   };
   directives: DirectiveSummary;
+  usageTimeline: UsageTimeline;
   workers: LiveWorkerTokenUsage[];
+}
+
+export interface UsageTimeline {
+  available: boolean;
+  points: Array<{
+    key: string;
+    sequenceNumber: number;
+    kind: 'directive' | 'question' | 'correction' | 'approval' | 'context' | 'mixed';
+    status: 'active' | 'completed';
+    measurement: 'exact-live' | 'exact-stored' | 'unavailable';
+    startedAt: string;
+    endedAt: string;
+    durationMs: number;
+    contextTokens: number | null;
+    contextWindow: number | null;
+    contextPercent: number | null;
+    inputTokens: number | null;
+    cachedInputTokens: number | null;
+    newInputTokens: number | null;
+    outputTokens: number | null;
+  }>;
 }
 
 export interface DirectiveSummary {
@@ -178,6 +200,7 @@ export interface SessionReview {
   outputTokens: number | null;
   platform: string;
   externalSessionId: string;
+  usageTimeline: UsageTimeline;
   repositoryName: string | null;
   evidence: Record<string, number>;
   offload: LiveSessionSnapshot['offload'];

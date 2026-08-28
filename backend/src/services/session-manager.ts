@@ -6,6 +6,7 @@ import type { Database, SessionStatus } from '../db/database.js';
 import { migrate } from '../db/migrator.js';
 import { listCodexStoredSessions, readCodexStoredSession } from './codex-session-source.js';
 import { readCodexLiveSession, readCodexWorkerUsage, type CodexDirectiveSummary, type CodexLiveSessionSnapshot, type CodexOffloadSummary } from './codex-local-session-store.js';
+import { buildSessionUsageTimeline } from './session-usage-timeline.js';
 
 export type SessionWorkerUsage = {
   externalThreadId: string;
@@ -43,7 +44,8 @@ async function review(database: Kysely<Database>, id: string) {
     .select([
       'summary.session_id as id', 'session.title', 'summary.status', 'summary.telemetry_level as telemetryLevel',
       'summary.observed_sequence as observedSequence', 'summary.durable_sequence as durableSequence',
-      'summary.started_at as startedAt', 'summary.completed_at as completedAt', 'summary.turn_count as turnCount',
+      'summary.started_at as startedAt', 'summary.last_observed_at as lastObservedAt',
+      'summary.completed_at as completedAt', 'summary.turn_count as turnCount',
       'summary.event_count as eventCount', 'summary.check_count as checkCount',
       'summary.changed_file_event_count as changedFileEventCount', 'summary.input_tokens as inputTokens',
       'summary.cached_input_tokens as cachedInputTokens', 'summary.output_tokens as outputTokens',
@@ -74,6 +76,13 @@ async function review(database: Kysely<Database>, id: string) {
       'interaction.input_tokens as openingInputTokens', 'interaction.cached_input_tokens as openingCachedInputTokens',
       'interaction.output_tokens as openingOutputTokens',
     ]).where('episode.session_id', '=', id).orderBy('episode.sequence_number').execute();
+  const interactionRows = await database.selectFrom('session_interactions')
+    .select([
+      'source_interaction_key as key', 'sequence_number as sequenceNumber', 'kind', 'occurred_at as occurredAt',
+      'context_tokens as contextTokens', 'context_window as contextWindow', 'input_tokens as inputTokens',
+      'cached_input_tokens as cachedInputTokens', 'output_tokens as outputTokens',
+    ])
+    .where('session_id', '=', id).orderBy('sequence_number').execute();
   const directiveSkills = await database.selectFrom('session_episode_skills as skill')
     .innerJoin('session_directive_episodes as episode', 'episode.id', 'skill.episode_id')
     .select(['skill.episode_id as episodeId', 'skill.skill_name as skillName'])
@@ -105,6 +114,17 @@ async function review(database: Kysely<Database>, id: string) {
     byWorker.set(row.id, worker);
   }
   const workers = [...byWorker.values()];
+  const rootWorker = workers.find(worker => worker.role === 'orchestrator');
+  const timelinePoints = buildSessionUsageTimeline({
+    boundaries: interactionRows,
+    closing: {
+      inputTokens: rootWorker?.inputTokens ?? null,
+      cachedInputTokens: rootWorker?.cachedInputTokens ?? null,
+      outputTokens: rootWorker?.outputTokens ?? null,
+    },
+    observedAt: row.lastObservedAt ?? row.completedAt ?? row.startedAt ?? new Date(0).toISOString(),
+    live: false,
+  });
   const byModel = new Map<string, { model: string; workerCount: number; inputTokens: number; cachedInputTokens: number; cacheWriteInputTokens: number; outputTokens: number; reasoningOutputTokens: number; totalTokens: number }>();
   for (const worker of workers) {
     const model = worker.model ?? 'unattributed';
@@ -181,7 +201,8 @@ async function review(database: Kysely<Database>, id: string) {
       },
     })),
   } : { available: false, classifierVersion: 2, episodes: [] };
-  return { ...row, evidence: Object.fromEntries(groups.map(group => [group.type, Number(group.count)])), usageAvailable: workers.length > 0, workerUsage: workers, modelUsage: [...byModel.values()], offload, directives };
+  const { lastObservedAt: _lastObservedAt, ...reviewRow } = row;
+  return { ...reviewRow, evidence: Object.fromEntries(groups.map(group => [group.type, Number(group.count)])), usageAvailable: workers.length > 0, workerUsage: workers, modelUsage: [...byModel.values()], offload, directives, usageTimeline: { available: timelinePoints.length > 0, points: timelinePoints } };
 }
 
 export function createSessionManager({

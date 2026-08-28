@@ -31,7 +31,7 @@ test('shows a session-information loader while the first live snapshot is pendin
     contextWindow: null, contextTokens: 0, contextPercent: null, turnCount: 0, completedTurnCount: 0, evidence: {},
     guidance: { available: false, agentsReads: 0, skillReads: 0, skillsUsed: [], promptCount: 0, promptsWithSkillRead: 0, averageSkillReadLatencyMs: null, currentPromptHasSkillRead: null },
     offload: { available: false, shellBatches: 0, candidateBatches: 0, associatedInputTokens: 0, associatedCachedInputTokens: 0, associatedOutputTokens: 0, associatedTotalTokens: 0, categories: { verification: 0, build: 0, formatting: 0, script: 0, monitoring: 0 }, processPatterns: [] },
-    directives: { available: true, classifierVersion: 2, episodes: [] }, workers: [],
+    directives: { available: true, classifierVersion: 2, episodes: [] }, usageTimeline: { available: false, points: [] }, workers: [],
   }), { status: 200 }));
   expect(await screen.findByRole('heading', { name: 'Pending session' })).toBeInTheDocument();
 });
@@ -63,6 +63,7 @@ test('watches normalized Codex usage without starting a turn', async () => {
       externalSessionId: 'thread-1234', repositoryName: 'app', evidence: { toolCall: 3 }, usageAvailable: true,
       offload: { available: true, shellBatches: 3, candidateBatches: 1, associatedInputTokens: 20, associatedCachedInputTokens: 10, associatedOutputTokens: 5, associatedTotalTokens: 25, categories: { verification: 1, build: 0, formatting: 0, script: 0, monitoring: 0 }, processPatterns: [] },
       directives: { available: false, classifierVersion: 2, episodes: [] },
+      usageTimeline: { available: false, points: [] },
       workerUsage: [{ id: 'worker-main', name: 'Main agent', role: 'orchestrator', model: 'gpt-sol', reasoningLevel: 'low', inputTokens: 80, cachedInputTokens: 40, cacheWriteInputTokens: 0, outputTokens: 20, reasoningOutputTokens: 5, totalTokens: 100 }],
       modelUsage: [],
     }), { status: 201 });
@@ -74,13 +75,17 @@ test('watches normalized Codex usage without starting a turn', async () => {
       offload: { available: true, shellBatches: 4, candidateBatches: 2, associatedInputTokens: 30, associatedCachedInputTokens: 20, associatedOutputTokens: 10, associatedTotalTokens: 40, categories: { verification: 1, build: 0, formatting: 0, script: 1, monitoring: 0 }, processPatterns: [{ key: 'git-host:pr-checks', label: 'GitHub pull-request checks', runner: 'git-host', operation: 'pr-checks', batchCount: 3, successCount: 2, failureCount: 1, unknownCount: 0, outputBytes: 2400000, maximumOutputBytes: 1200000, outputMode: 'final-state', recommendation: 'Poll outside model context; return the final state and failed check names only.' }] },
       directives: { available: true, classifierVersion: 2, episodes: [{
         key: 'directive:1', sequenceNumber: 1, status: 'completed', startedAt: '2026-08-19T00:00:00.000Z', completedAt: '2026-08-19T00:10:00.000Z',
-        openingInteractionKey: 'message-1', openingKind: 'directive', classificationConfidence: 0.8,
+        openingInteractionKey: 'prompt-1', openingKind: 'directive', classificationConfidence: 0.8,
         preparation: { questions: 2, context: 1, approvals: 0, patternReferences: 1, skillsUsed: ['review-changes'] }, corrections: 1,
         context: { tokensAtStart: 100, window: 200, percentAtStart: 50, peakPercent: 75 },
         usageAtStart: { inputTokens: 80, cachedInputTokens: 40, outputTokens: 20 },
         discovery: { agentsReferences: 1, skillReferences: 1, skillsUsed: ['develop-feature'], firstPatternLatencyMs: 2400, patternBeforeFirstChange: true },
         execution: { toolCalls: 4, fileChanges: 2, webSearches: 1, delegations: 1, compactions: 0, verificationBatches: 1 },
       }] },
+      usageTimeline: { available: true, points: [
+        { key: 'prompt-1', sequenceNumber: 1, kind: 'directive', status: 'completed', measurement: 'exact-live', startedAt: '2026-08-18T23:50:00.000Z', endedAt: '2026-08-18T23:58:00.000Z', durationMs: 480000, contextTokens: 20, contextWindow: 200, contextPercent: 10, inputTokens: 40, cachedInputTokens: 30, newInputTokens: 10, outputTokens: 8 },
+        { key: 'prompt-2', sequenceNumber: 2, kind: 'question', status: 'active', measurement: 'exact-live', startedAt: '2026-08-18T23:58:00.000Z', endedAt: '2026-08-19T00:00:00.000Z', durationMs: 120000, contextTokens: 50, contextWindow: 200, contextPercent: 25, inputTokens: 20, cachedInputTokens: 10, newInputTokens: 10, outputTokens: 4 },
+      ] },
       workers: [
         { externalThreadId: 'thread-1234', parentExternalThreadId: null, nickname: null, role: null, model: 'gpt-sol', reasoningLevel: 'low', inputTokens: 80, cachedInputTokens: 40, cacheWriteInputTokens: 0, outputTokens: 20, reasoningOutputTokens: 5, totalTokens: 100, active: true, updatedAt: new Date().toISOString() },
         { externalThreadId: 'thread-old', parentExternalThreadId: 'thread-1234', nickname: 'Historical worker', role: null, model: 'gpt-sol', reasoningLevel: 'medium', inputTokens: 40, cachedInputTokens: 20, cacheWriteInputTokens: 0, outputTokens: 5, reasoningOutputTokens: 1, totalTokens: 45, active: false, updatedAt: '2025-01-01T00:00:00.000Z' },
@@ -99,26 +104,40 @@ test('watches normalized Codex usage without starting a turn', async () => {
   expect(screen.queryByText('Old archived work')).not.toBeInTheDocument();
   fireEvent.click(await screen.findByRole('button', { name: 'Generate static review' }));
   expect((await screen.findAllByText('Unavailable')).length).toBeGreaterThan(0);
-  expect(screen.getByText('Directive episodes are unavailable in this review.')).toBeInTheDocument();
+  expect(screen.getByText('Waiting for prompt activity')).toBeInTheDocument();
   expect(await screen.findByText('Static review generated from durable SQLite evidence.')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Start watching' }));
   expect(await screen.findByRole('heading', { name: 'Build live mode' })).toBeInTheDocument();
-  expect(await screen.findByText('25.0%')).toBeInTheDocument();
-  expect(screen.getByText('Directive episodes')).toBeInTheDocument();
-  expect(screen.getByText(/1 change-backed · 2 prep questions · 1\/1 with verification runs/)).toBeInTheDocument();
-  expect(screen.getByText('Pattern found before editing · 2.4s')).toBeInTheDocument();
-  expect(screen.getByText('1 verification run')).toBeInTheDocument();
+  expect((await screen.findAllByText('25.0%')).length).toBeGreaterThan(0);
+  expect(screen.getByRole('region', { name: 'Recent prompt token activity' })).toBeInTheDocument();
+  expect(screen.getByRole('img', { name: 'Stacked token movement by prompt' })).toBeInTheDocument();
+  expect(screen.getByRole('img', { name: 'Context pressure by prompt' })).toBeInTheDocument();
+  expect(screen.getByText('Updating every second')).toBeInTheDocument();
+  expect(screen.getAllByText('#2').length).toBeGreaterThan(1);
+  expect(screen.getByText('2m 0s')).toBeInTheDocument();
+  expect(screen.queryByText('Visible worker tokens')).not.toBeInTheDocument();
+  expect(screen.queryByText('Directive episodes')).not.toBeInTheDocument();
+  expect(screen.getByText('change-backed')).toBeInTheDocument();
+  const promptDetails = screen.getByRole('button', { name: 'Show details for prompt #1' });
+  expect(promptDetails).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(promptDetails);
+  expect(promptDetails).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.getByText(/Pattern found before editing · 2.4s/)).toBeInTheDocument();
+  expect(screen.getByText(/2 changes · 1 verification run/)).toBeInTheDocument();
+  expect(screen.getByRole('region', { name: 'Observed skill routing tree' })).toBeInTheDocument();
+  expect(screen.getByText('All observed workers')).toBeInTheDocument();
+  expect(screen.getByText('First guidance read after 2.4s · before first change')).toBeInTheDocument();
+  expect(screen.getByText('develop-feature')).toBeInTheDocument();
+  expect(screen.getByText(/Observed downstream: 2 changes/)).toBeInTheDocument();
   expect(screen.queryByText('Quiet process opportunities')).not.toBeInTheDocument();
   expect(screen.queryByText('Tool calls')).not.toBeInTheDocument();
-  expect(screen.getAllByText('50.0%', { selector: 'strong' }).length).toBeGreaterThan(0);
-  expect(screen.getAllByText('50.0%').length).toBeGreaterThan(0);
   expect(screen.getByText('gpt-sol · low reasoning · 1 worker')).toBeInTheDocument();
   expect(screen.getByText('input tokens · 50.0% cached')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /Main agent/ }));
   expect(screen.getAllByText(/low reasoning · 1 worker/).length).toBeGreaterThan(1);
   expect(screen.getByText('Cached input')).toBeInTheDocument();
-  expect(screen.getByText('New input')).toBeInTheDocument();
-  expect(screen.getByText('Output')).toBeInTheDocument();
+  expect(screen.getAllByText('New input').length).toBeGreaterThan(1);
+  expect(screen.getAllByText('Output').length).toBeGreaterThan(1);
   fireEvent.click(screen.getByRole('button', { name: 'Worker activity period' }));
   fireEvent.click(screen.getByRole('option', { name: 'All time' }));
   expect(screen.getByText('Subagents')).toBeInTheDocument();

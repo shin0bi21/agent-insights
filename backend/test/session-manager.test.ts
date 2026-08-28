@@ -63,6 +63,11 @@ test('imports a Codex session as content-free normalized review evidence', async
     assert.equal(second?.offload.processPatterns[0]?.key, 'package-manager:check');
     assert.equal(second?.offload.processPatterns[0]?.outputBytes, 1200);
     assert.equal(second?.directives.episodes.length, 1);
+    assert.equal(second?.usageTimeline.points.length, 2);
+    assert.deepEqual(second?.usageTimeline.points.map(point => ({ sequence: point.sequenceNumber, input: point.inputTokens, cached: point.cachedInputTokens, output: point.outputTokens })), [
+      { sequence: 1, input: 20, cached: 15, output: 3 },
+      { sequence: 2, input: 50, cached: 25, output: 12 },
+    ]);
     assert.deepEqual(second?.directives.episodes[0]?.preparation, { questions: 1, context: 0, approvals: 0, patternReferences: 1, skillsUsed: ['review-changes'] });
     assert.deepEqual(second?.directives.episodes[0]?.discovery.skillsUsed, ['develop-feature']);
     assert.equal(await database.selectFrom('session_interactions').selectAll().execute().then(rows => rows.length), 2);

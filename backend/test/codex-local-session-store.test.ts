@@ -21,7 +21,7 @@ test('reads bounded per-worker usage without retaining rollout content', async (
   const parentRollout = join(sessions, 'parent.jsonl');
   const childRollout = join(sessions, 'child.jsonl');
   const usage = (input, cached, output, reasoning) => JSON.stringify({ type: 'event_msg', payload: { type: 'token_count', info: { total_token_usage: { input_tokens: input, cached_input_tokens: cached, cache_write_input_tokens: 0, output_tokens: output, reasoning_output_tokens: reasoning, total_tokens: input + output }, last_token_usage: { total_tokens: 75 }, model_context_window: 300 } } });
-  writeFileSync(parentRollout, `${JSON.stringify({ payload: { message: 'must not be returned' } })}\n${JSON.stringify({ timestamp: '2026-08-19T00:00:00.000Z', type: 'response_item', payload: { type: 'message', role: 'user', content: 'private prompt' } })}\n${JSON.stringify({ timestamp: '2026-08-19T00:00:02.500Z', type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec_command', input: 'cat AGENTS.md .agents/skills/develop-feature/SKILL.md' } })}\n${JSON.stringify({ type: 'event_msg', payload: { type: 'task_started' } })}\n${JSON.stringify({ type: 'event_msg', payload: { type: 'web_search_end', query: 'private query' } })}\n${usage(100, 60, 20, 5)}\n`);
+  writeFileSync(parentRollout, `${JSON.stringify({ payload: { message: 'must not be returned' } })}\n${JSON.stringify({ timestamp: '2026-08-19T00:00:00.000Z', type: 'response_item', payload: { type: 'message', role: 'user', content: 'private prompt' } })}\n${JSON.stringify({ timestamp: '2026-08-19T00:00:02.500Z', type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec_command', input: 'cat AGENTS.md .agents/skills/develop-feature/SKILL.md .codex/plugins/cache/deep-research-work/0.1.0/skills/deep-research/SKILL.md' } })}\n${JSON.stringify({ type: 'event_msg', payload: { type: 'task_started' } })}\n${JSON.stringify({ type: 'event_msg', payload: { type: 'web_search_end', query: 'private query' } })}\n${usage(100, 60, 20, 5)}\n`);
   writeFileSync(childRollout, `${usage(40, 10, 8, 2)}\n`);
   const sqlite = new DatabaseDriver(join(codexHome, 'state_5.sqlite'));
   sqlite.exec('CREATE TABLE threads (id TEXT PRIMARY KEY, model TEXT, reasoning_effort TEXT, agent_nickname TEXT, agent_role TEXT, rollout_path TEXT, title TEXT, cwd TEXT); CREATE TABLE thread_spawn_edges (parent_thread_id TEXT, child_thread_id TEXT PRIMARY KEY, status TEXT);');
@@ -40,7 +40,11 @@ test('reads bounded per-worker usage without retaining rollout content', async (
   assert.equal(live.repositoryName, 'example');
   assert.equal(live.contextPercent, 25);
   assert.equal(live.evidence.webSearch, 1);
-  assert.deepEqual(live.guidance, { available: true, agentsReads: 1, skillReads: 1, skillsUsed: ['develop-feature'], promptCount: 1, promptsWithSkillRead: 1, averageSkillReadLatencyMs: 2500, currentPromptHasSkillRead: true });
+  assert.equal(live.usageTimeline.available, true);
+  assert.deepEqual(live.usageTimeline.points.map(point => ({ sequence: point.sequenceNumber, status: point.status, input: point.inputTokens, cached: point.cachedInputTokens, output: point.outputTokens })), [
+    { sequence: 1, status: 'active', input: 100, cached: 60, output: 20 },
+  ]);
+  assert.deepEqual(live.guidance, { available: true, agentsReads: 1, skillReads: 2, skillsUsed: ['deep-research-work:deep-research', 'develop-feature'], promptCount: 1, promptsWithSkillRead: 1, averageSkillReadLatencyMs: 2500, currentPromptHasSkillRead: true });
   assert.equal(live.directives.episodes.length, 0);
   assert.deepEqual(live.offload, { available: true, shellBatches: 1, candidateBatches: 0, associatedInputTokens: 0, associatedCachedInputTokens: 0, associatedOutputTokens: 0, associatedTotalTokens: 0, categories: { verification: 0, build: 0, formatting: 0, script: 0, monitoring: 0 }, processPatterns: [] });
   assert.equal(JSON.stringify(live).includes('private query'), false);
@@ -53,11 +57,16 @@ test('reads bounded per-worker usage without retaining rollout content', async (
   assert.equal(appended.evidence.webSearch, 1);
   assert.equal(appended.completedTurnCount, 1);
   assert.equal(appended.workers[0].totalTokens, 150);
+  assert.deepEqual(appended.usageTimeline.points.at(-1) && {
+    sequence: appended.usageTimeline.points.at(-1)!.sequenceNumber,
+    status: appended.usageTimeline.points.at(-1)!.status,
+    input: appended.usageTimeline.points.at(-1)!.inputTokens,
+  }, { sequence: 3, status: 'completed', input: 0 });
   assert.equal(appended.offload.processPatterns.length, 2);
   assert.deepEqual(appended.directives.episodes[0], {
     key: 'directive:message-directive', sequenceNumber: 1, status: 'completed', startedAt: '2026-08-19T00:00:03.000Z', completedAt: '2026-08-19T00:00:06.000Z',
     openingInteractionKey: 'message-directive', openingKind: 'directive', classificationConfidence: 0.8,
-    preparation: { questions: 0, context: 1, approvals: 0, patternReferences: 2, skillsUsed: ['develop-feature'] }, corrections: 0,
+    preparation: { questions: 0, context: 1, approvals: 0, patternReferences: 3, skillsUsed: ['deep-research-work:deep-research', 'develop-feature'] }, corrections: 0,
     context: { tokensAtStart: 75, window: 300, percentAtStart: 25, peakPercent: 25 },
     usageAtStart: { inputTokens: 100, cachedInputTokens: 60, outputTokens: 20 },
     discovery: { agentsReferences: 0, skillReferences: 0, skillsUsed: [], firstPatternLatencyMs: null, patternBeforeFirstChange: null },

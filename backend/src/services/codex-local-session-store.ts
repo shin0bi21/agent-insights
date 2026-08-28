@@ -2,6 +2,7 @@ import { createReadStream, existsSync, realpathSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, resolve, sep } from 'node:path';
 import DatabaseDriver from 'better-sqlite3';
+import { buildSessionUsageTimeline, type SessionUsageTimelinePoint } from './session-usage-timeline.js';
 
 export type CodexWorkerUsage = {
   externalThreadId: string;
@@ -125,6 +126,7 @@ export type CodexLiveSessionSnapshot = {
   };
   offload: CodexOffloadSummary;
   directives: CodexDirectiveSummary;
+  usageTimeline: { available: boolean; points: SessionUsageTimelinePoint[] };
   workers: CodexWorkerUsage[];
 };
 
@@ -304,6 +306,10 @@ function closePreviousCandidate(state: RolloutState, occurredAt: string) {
 
 function applyUserInteraction(state: RolloutState, payload: Record<string, any>, timestamp: number) {
   const text = userMessageText(payload);
+  if (/^<(?:environment_context|permissions|skills_instructions|apps_instructions|plugins_instructions)\b/i.test(text.trim())) {
+    state.preparation.context += 1;
+    return;
+  }
   const classification = classifySessionInteraction(text, Boolean(activeDirective(state)));
   const sequenceNumber = state.interactions.length + 1;
   const sourceKey = typeof payload.id === 'string' && payload.id ? payload.id : `interaction:${sequenceNumber}`;
@@ -315,11 +321,6 @@ function applyUserInteraction(state: RolloutState, payload: Record<string, any>,
     outputTokens: state.lastUsage.outputTokens,
   });
   closePreviousCandidate(state, occurredAt);
-  if (/^<(?:environment_context|permissions|skills_instructions|apps_instructions|plugins_instructions)\b/i.test(text.trim())) {
-    state.preparation.context += 1;
-    return;
-  }
-
   const window = state.contextWindow;
   const percent = window ? Math.min(100, (state.contextTokens / window) * 100) : null;
   state.directiveEpisodes.push({
@@ -449,6 +450,21 @@ function processOutcome(output: unknown): 'success' | 'failure' | 'unknown' {
   return 'unknown';
 }
 
+function observedSkillNames(input: string) {
+  const names = new Set<string>();
+  const pluginRanges: Array<[number, number]> = [];
+  const pluginPattern = /plugins[\\/]cache[\\/]([^\\/"'\s]+)[\\/][^\\/"'\s]+[\\/]skills[\\/](?:[^\\/"'\s]+[\\/])*([^\\/"'\s]+)[\\/]SKILL\.md/g;
+  for (const match of input.matchAll(pluginPattern)) {
+    names.add(`${match[1]}:${match[2]}`);
+    pluginRanges.push([match.index, match.index + match[0].length]);
+  }
+  const skillPattern = /(?:\.agents[\\/]|\.codex[\\/])?skills[\\/](?:[^\\/"'\s]+[\\/])*([^\\/"'\s]+)[\\/]SKILL\.md/g;
+  for (const match of input.matchAll(skillPattern)) {
+    if (!pluginRanges.some(([start, end]) => match.index >= start && match.index < end)) names.add(match[1]);
+  }
+  return [...names];
+}
+
 function applyRolloutMessage(state: RolloutState, line: string) {
   if (Buffer.byteLength(line) > maximumRolloutMessageBytes) return true;
   let message: Record<string, any>;
@@ -480,9 +496,9 @@ function applyRolloutMessage(state: RolloutState, line: string) {
       const input = boundedToolInput(message.payload);
       const agentsMatches = input.match(/AGENTS\.md\b/g);
       state.agentsReads += agentsMatches?.length ?? 0;
-      const matches = [...input.matchAll(/(?:\.agents|\.codex|skills)[\\/]skills[\\/](?:[^\\/"'\s]+[\\/])*([^\\/"'\s]+)[\\/]SKILL\.md/g)];
-      for (const match of matches) {
-        state.skillsUsed.add(match[1]);
+      const skillNames = observedSkillNames(input);
+      for (const skillName of skillNames) {
+        state.skillsUsed.add(skillName);
         if (Number.isFinite(timestamp)) state.skillReadTimes.push(timestamp);
       }
       const toolName = String(message?.payload?.name ?? message?.payload?.tool_name ?? '');
@@ -491,9 +507,9 @@ function applyRolloutMessage(state: RolloutState, line: string) {
       if (episode && Number.isFinite(timestamp)) {
         episode.execution.toolCalls += 1;
         episode.discovery.agentsReferences += agentsMatches?.length ?? 0;
-        episode.discovery.skillReferences += matches.length;
-        episode.discovery.skillsUsed = [...new Set([...episode.discovery.skillsUsed, ...matches.map(match => match[1])])].sort();
-        if ((agentsMatches?.length || matches.length) && episode.discovery.firstPatternLatencyMs === null) {
+        episode.discovery.skillReferences += skillNames.length;
+        episode.discovery.skillsUsed = [...new Set([...episode.discovery.skillsUsed, ...skillNames])].sort();
+        if ((agentsMatches?.length || skillNames.length) && episode.discovery.firstPatternLatencyMs === null) {
           episode.discovery.firstPatternLatencyMs = Math.max(0, timestamp - Date.parse(episode.startedAt));
           episode.discovery.patternBeforeFirstChange = episode.execution.fileChanges === 0;
         }
@@ -768,12 +784,30 @@ export async function readCodexLiveSession(externalThreadId: string, {
       processPatterns: new Map<string, CodexProcessPattern>(),
     });
     const normalizedOffload = { ...offload, processPatterns: [...offload.processPatterns.values()].sort((a, b) => b.outputBytes - a.outputBytes || b.batchCount - a.batchCount || a.label.localeCompare(b.label)) };
+    const observedAt = new Date().toISOString();
+    const root = scans[0];
+    const usageTimeline = buildSessionUsageTimeline({
+      boundaries: root.directives.interactions.map(interaction => ({
+        key: interaction.sourceKey,
+        sequenceNumber: interaction.sequenceNumber,
+        kind: interaction.kind,
+        occurredAt: interaction.occurredAt,
+        contextTokens: interaction.contextTokens,
+        contextWindow: interaction.contextWindow,
+        inputTokens: interaction.inputTokens,
+        cachedInputTokens: interaction.cachedInputTokens,
+        outputTokens: interaction.outputTokens,
+      })),
+      closing: root.usage,
+      observedAt,
+      live: root.active,
+    });
     return {
       externalId: externalThreadId,
       title: `Codex session ${externalThreadId.slice(0, 8)}`,
       repositoryName: rows[0].cwd ? basename(rows[0].cwd) : null,
       status: scans.some(scan => scan.active) ? 'active' : 'idle',
-      observedAt: new Date().toISOString(),
+      observedAt,
       contextWindow,
       contextTokens,
       contextPercent: contextWindow ? Math.min(100, (contextTokens / contextWindow) * 100) : null,
@@ -792,6 +826,7 @@ export async function readCodexLiveSession(externalThreadId: string, {
       },
       offload: normalizedOffload,
       directives: scans[0].directives,
+      usageTimeline: { available: usageTimeline.length > 0, points: usageTimeline },
       workers,
     };
   } finally { sqlite.close(); }

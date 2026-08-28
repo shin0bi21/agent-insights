@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { api } from '../../api';
 import FloatingSelect from '../../common/components/FloatingSelect/FloatingSelect';
 import LoadingSpinner from '../../common/components/LoadingSpinner/LoadingSpinner';
+import SkillRoutingTree from '../../components/SkillRoutingTree/SkillRoutingTree';
 import type { LiveSessionSnapshot, SessionReview, StoredCodexSession } from '../../types';
 import { eyebrowClass, mutedTextClass, pageTitleClass, panelClass } from '../../ui';
 
@@ -41,6 +42,13 @@ function relativeActivity(session: StoredCodexSession, now = Date.now()) {
 function cacheHitRate(inputTokens: number, cachedInputTokens: number) {
   return inputTokens > 0 ? `${((Math.min(cachedInputTokens, inputTokens) / inputTokens) * 100).toFixed(1)}%` : 'Unavailable';
 }
+function elapsedTime(durationMs: number) {
+  const seconds = Math.max(0, Math.floor(durationMs / 1_000));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
 function openingKindLabel(kind: LiveSessionSnapshot['directives']['episodes'][number]['openingKind']) {
   if (kind === 'mixed') return 'Question + change request';
   if (kind === 'question') return 'Question that led to changes';
@@ -67,6 +75,7 @@ function reviewSnapshot(review: SessionReview): LiveSessionSnapshot {
     guidance: { available: false, agentsReads: 0, skillReads: 0, skillsUsed: [], promptCount: 0, promptsWithSkillRead: 0, averageSkillReadLatencyMs: null, currentPromptHasSkillRead: null },
     offload: review.offload ?? { available: false, shellBatches: 0, candidateBatches: 0, associatedInputTokens: 0, associatedCachedInputTokens: 0, associatedOutputTokens: 0, associatedTotalTokens: 0, categories: { verification: 0, build: 0, formatting: 0, script: 0, monitoring: 0 }, processPatterns: [] },
     directives: review.directives ?? { available: false, classifierVersion: 2, episodes: [] },
+    usageTimeline: review.usageTimeline ?? { available: false, points: [] },
     workers: review.workerUsage.map(worker => ({
       externalThreadId: worker.id,
       parentExternalThreadId: worker.role === 'orchestrator' ? null : 'subagent',
@@ -99,6 +108,7 @@ export default function Live({ embedded = false }: { embedded?: boolean }) {
   const [sessionRange, setSessionRange] = useState<SessionRange>('five');
   const [sessionQuery, setSessionQuery] = useState('');
   const [expandedUsage, setExpandedUsage] = useState<Record<'Main agent' | 'Subagents', boolean>>({ 'Main agent': false, Subagents: false });
+  const [expandedPromptDetails, setExpandedPromptDetails] = useState<Record<string, boolean>>({});
   const dashboardRef = useRef<HTMLElement>(null);
   const scrollOnNextSnapshot = useRef(false);
 
@@ -153,9 +163,6 @@ export default function Live({ embedded = false }: { embedded?: boolean }) {
   }
 
   const visibleWorkers = snapshot?.workers.filter(worker => workerInRange(worker, workerRange)) ?? [];
-  const totalTokens = visibleWorkers.reduce((sum, worker) => sum + worker.totalTokens, 0);
-  const totalInputTokens = visibleWorkers.reduce((sum, worker) => sum + worker.inputTokens, 0);
-  const totalCachedInputTokens = visibleWorkers.reduce((sum, worker) => sum + worker.cachedInputTokens, 0);
   const usageGroups = [...visibleWorkers.reduce((groups, worker) => {
     const scope = worker.parentExternalThreadId === null ? 'Main agent' : 'Subagents';
     const key = `${scope}:${worker.model ?? 'Unattributed'}:${worker.reasoningLevel ?? 'unknown'}`;
@@ -178,10 +185,11 @@ export default function Live({ embedded = false }: { embedded?: boolean }) {
   const normalizedQuery = sessionQuery.trim().toLowerCase();
   const visibleSessions = sessions.filter(session => sessionInRange(session, sessionRange) && (!normalizedQuery || `${session.title} ${session.repositoryName ?? ''}`.toLowerCase().includes(normalizedQuery)));
   const directiveEpisodes = snapshot?.directives?.episodes ?? [];
-  const directivePreparationQuestions = directiveEpisodes.reduce((sum, episode) => sum + episode.preparation.questions, 0);
-  const directiveVerifications = directiveEpisodes.filter(episode => episode.execution.verificationBatches > 0).length;
-  const patternTimingEpisodes = directiveEpisodes.filter(episode => episode.discovery.patternBeforeFirstChange !== null);
-  const patternsBeforeChange = patternTimingEpisodes.filter(episode => episode.discovery.patternBeforeFirstChange).length;
+  const directiveByInteraction = new Map(directiveEpisodes.map(episode => [episode.openingInteractionKey, episode]));
+  const chartUsage = snapshot?.usageTimeline?.points.slice(-12) ?? [];
+  const recentUsage = chartUsage.slice().reverse();
+  const maximumPromptTokens = Math.max(1, ...chartUsage.map(point => (point.inputTokens ?? 0) + (point.outputTokens ?? 0)));
+  const chartSlot = chartUsage.length ? 540 / chartUsage.length : 540;
   return (
     <section className={embedded ? undefined : 'mx-auto max-w-[1100px]'} aria-labelledby="live-title">
       {embedded
@@ -193,7 +201,7 @@ export default function Live({ embedded = false }: { embedded?: boolean }) {
         <label className="sr-only" htmlFor="session-search">Search session history</label><input id="session-search" className="mt-4 w-full rounded-lg border border-[#c8c1df] bg-white px-4 py-3 text-sm outline-offset-2 focus-visible:outline-3 focus-visible:outline-[#6f56d9]/32 dark:border-[#4d455e] dark:bg-[#1b1921]" type="search" value={sessionQuery} onChange={event => setSessionQuery(event.target.value)} placeholder="Search by session title or repository" />
         <div className="mt-4 grid max-h-[360px] gap-2 overflow-y-auto pr-1" aria-label="Recent Codex sessions">
           {loading && <div className="flex min-h-32 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-[#c8c1df] p-5 dark:border-[#4d455e]" aria-label="Loading sessions" role="status"><LoadingSpinner /><strong className="text-sm">Loading sessions…</strong><span className={`text-xs ${mutedTextClass}`}>Reading stored Codex threads.</span></div>}
-          {!loading && visibleSessions.map(session => <button className={`grid w-full grid-cols-[1fr_auto] items-center gap-4 rounded-xl border p-4 text-left ${selectedId === session.externalId ? 'border-[#6f56d9] bg-[#f4f1fc] dark:border-[#a58cff] dark:bg-[#27222f]' : 'border-[#dedbea] dark:border-[#373241]'}`} key={session.externalId} onClick={() => { setSelectedId(session.externalId); setSnapshot(null); setSnapshotMode(null); setWatching(false); setDashboardLoading(false); }} type="button"><span><strong className="line-clamp-1 block text-sm">{session.title}</strong><span className={`mt-1 block text-xs ${mutedTextClass}`}>{session.repositoryName ?? 'No repository'} · {session.source}</span></span><span className={`text-xs font-semibold ${mutedTextClass}`}>{relativeActivity(session)}</span></button>)}
+          {!loading && visibleSessions.map(session => <button className={`grid w-full grid-cols-[1fr_auto] items-center gap-4 rounded-xl border p-4 text-left ${selectedId === session.externalId ? 'border-[#6f56d9] bg-[#f4f1fc] dark:border-[#a58cff] dark:bg-[#27222f]' : 'border-[#dedbea] dark:border-[#373241]'}`} key={session.externalId} onClick={() => { setSelectedId(session.externalId); setSnapshot(null); setSnapshotMode(null); setWatching(false); setDashboardLoading(false); setExpandedPromptDetails({}); }} type="button"><span><strong className="line-clamp-1 block text-sm">{session.title}</strong><span className={`mt-1 block text-xs ${mutedTextClass}`}>{session.repositoryName ?? 'No repository'} · {session.source}</span></span><span className={`text-xs font-semibold ${mutedTextClass}`}>{relativeActivity(session)}</span></button>)}
           {!loading && !visibleSessions.length && <div className="rounded-xl border border-dashed border-[#c8c1df] p-5 text-sm dark:border-[#4d455e]"><strong>No matching recent sessions</strong><p className={`mt-2 ${mutedTextClass}`}>Clear the search or choose a wider recent-activity period.</p></div>}
         </div>
         <div className={`mt-4 flex flex-wrap items-center gap-3 ${embedded ? 'justify-end' : 'justify-between'}`}>
@@ -205,37 +213,72 @@ export default function Live({ embedded = false }: { embedded?: boolean }) {
       {snapshot && !dashboardLoading && <>
         <section className={`${panelClass} mt-6 scroll-mt-6 p-6`} aria-labelledby="health-title" ref={dashboardRef}>
           <div className="flex flex-wrap items-start justify-between gap-4"><div><h3 id="health-title">{snapshot.title}</h3><p className={`mt-1 text-sm ${mutedTextClass}`}>{snapshot.repositoryName ?? 'No repository'}</p></div><span className="rounded-full bg-[#f4f1fc] px-3 py-1 text-xs font-semibold dark:bg-[#27222f]">{snapshot.status}</span></div>
-          <div className="mt-6 grid grid-cols-5 gap-3 max-[900px]:grid-cols-2">{[
-            ['Context', snapshot.contextPercent === null ? 'Unavailable' : `${snapshot.contextPercent.toFixed(1)}%`], ['Cache hit rate', cacheHitRate(totalInputTokens, totalCachedInputTokens)], ['Visible worker tokens', number.format(totalTokens)], ['Visible workers', visibleWorkers.length], ['Turns', `${snapshot.completedTurnCount}/${snapshot.turnCount}`],
-          ].map(([label, value]) => <div className="rounded-xl bg-[#f4f1fc] p-4 dark:bg-[#27222f]" key={label}><strong className="block text-2xl">{value}</strong><span className={`text-xs ${mutedTextClass}`}>{label}</span></div>)}</div>
-          {snapshot.contextPercent !== null && <div className="mt-5"><div className="h-2 overflow-hidden rounded-full bg-[#e4dfef] dark:bg-[#373241]"><div className="h-full rounded-full bg-[#6f56d9] dark:bg-[#a58cff]" style={{ width: `${snapshot.contextPercent}%` }} /></div><p className={`mt-2 text-xs ${mutedTextClass}`}>{number.format(snapshot.contextTokens)} of {number.format(snapshot.contextWindow ?? 0)} tokens in the current context window.</p></div>}
+          <div className="mt-5 grid grid-cols-[1.2fr_.8fr] gap-3 max-[700px]:grid-cols-1">
+            <div className="rounded-xl bg-[#f4f1fc] p-4 dark:bg-[#27222f]">
+              <div className="flex items-end justify-between gap-4"><span><span className={`block text-xs ${mutedTextClass}`}>Current context</span><strong className="mt-1 block text-2xl">{snapshot.contextPercent === null ? 'Unavailable' : `${snapshot.contextPercent.toFixed(1)}%`}</strong></span>{snapshot.contextWindow !== null && <span className={`text-right text-xs ${mutedTextClass}`}>{compactNumber.format(snapshot.contextTokens)} / {compactNumber.format(snapshot.contextWindow)}</span>}</div>
+              {snapshot.contextPercent !== null && <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#dedbea] dark:bg-[#373241]" aria-label={`${snapshot.contextPercent.toFixed(1)}% of context window used`} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={snapshot.contextPercent}><div className="h-full rounded-full bg-[#6f56d9] transition-[width] motion-reduce:transition-none dark:bg-[#a58cff]" style={{ width: `${snapshot.contextPercent}%` }} /></div>}
+            </div>
+            <div className="rounded-xl bg-[#f4f1fc] p-4 dark:bg-[#27222f]"><span className={`block text-xs ${mutedTextClass}`}>Session activity</span><strong className="mt-1 block text-2xl">{visibleWorkers.filter(worker => worker.active).length} active</strong><span className={`mt-1 block text-xs ${mutedTextClass}`}>{visibleWorkers.length} visible workers · {snapshot.completedTurnCount}/{snapshot.turnCount} turns complete</span></div>
+          </div>
+          <div className="mt-6 flex flex-wrap items-end justify-between gap-3"><div><h4>Recent prompt activity</h4><p className={`mt-1 text-xs ${mutedTextClass}`}>Root-agent token movement between privacy-safe prompt boundaries.</p></div>{snapshotMode === 'live' && <span className="inline-flex items-center gap-2 text-xs font-semibold text-[#236534] dark:text-[#9ce0ad]"><span className="h-2 w-2 rounded-full bg-current" aria-hidden="true" />Updating every second</span>}</div>
+          {chartUsage.length > 0 && <div className="mt-3 grid grid-cols-2 gap-3 max-[760px]:grid-cols-1">
+            <figure className="rounded-xl border border-[#dedbea] p-4 dark:border-[#373241]">
+              <figcaption><strong className="text-sm">Token movement</strong><span className={`mt-0.5 block text-[11px] ${mutedTextClass}`}>Per prompt interval</span></figcaption>
+              <svg aria-label="Stacked token movement by prompt" className="mt-3 h-[180px] w-full" role="img" viewBox="0 0 600 180">
+                <line className="stroke-[#dedbea] dark:stroke-[#373241]" x1="30" x2="570" y1="145" y2="145" />
+                {chartUsage.map((point, index) => {
+                  const cachedHeight = ((point.cachedInputTokens ?? 0) / maximumPromptTokens) * 120;
+                  const newHeight = ((point.newInputTokens ?? 0) / maximumPromptTokens) * 120;
+                  const outputHeight = ((point.outputTokens ?? 0) / maximumPromptTokens) * 120;
+                  const x = 30 + index * chartSlot + Math.max(2, (chartSlot - Math.min(34, chartSlot * .58)) / 2);
+                  const width = Math.min(34, chartSlot * .58);
+                  const available = point.measurement !== 'unavailable';
+                  return <g key={point.key}>
+                    {available ? <>
+                      <rect className="fill-[#9b86ef] dark:fill-[#8e78e0]" height={cachedHeight} rx="2" width={width} x={x} y={145 - cachedHeight} />
+                      <rect className="fill-[#5d43c5] dark:fill-[#b39cff]" height={newHeight} rx="2" width={width} x={x} y={145 - cachedHeight - newHeight} />
+                      <rect className="fill-[#2f9d78] dark:fill-[#73d6b4]" height={outputHeight} rx="2" width={width} x={x} y={145 - cachedHeight - newHeight - outputHeight} />
+                    </> : <line className="stroke-[#aaa3b7]" strokeDasharray="3 3" x1={x} x2={x + width} y1="144" y2="144" />}
+                    <text className="fill-[#6f6a7d] text-[9px] dark:fill-[#aaa3b7]" textAnchor="middle" x={x + width / 2} y="163">#{point.sequenceNumber}</text>
+                  </g>;
+                })}
+              </svg>
+              <div className={`flex flex-wrap gap-3 text-[10px] ${mutedTextClass}`} aria-hidden="true"><span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#9b86ef]" />Cached</span><span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#5d43c5]" />New input</span><span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#2f9d78]" />Output</span></div>
+            </figure>
+            <figure className="rounded-xl border border-[#dedbea] p-4 dark:border-[#373241]">
+              <figcaption><strong className="text-sm">Context pressure</strong><span className={`mt-0.5 block text-[11px] ${mutedTextClass}`}>At each prompt boundary</span></figcaption>
+              <svg aria-label="Context pressure by prompt" className="mt-3 h-[180px] w-full" role="img" viewBox="0 0 600 180">
+                {[25, 50, 75, 100].map(percent => <g key={percent}><line className="stroke-[#dedbea] dark:stroke-[#373241]" x1="30" x2="570" y1={145 - percent * 1.2} y2={145 - percent * 1.2} /><text className="fill-[#6f6a7d] text-[9px] dark:fill-[#aaa3b7]" textAnchor="end" x="25" y={148 - percent * 1.2}>{percent}%</text></g>)}
+                {chartUsage.slice(1).map((point, index) => {
+                  const previous = chartUsage[index];
+                  if (previous.contextPercent === null || point.contextPercent === null) return null;
+                  const spacing = chartUsage.length === 1 ? 0 : 540 / (chartUsage.length - 1);
+                  return <line className="stroke-[#6f56d9] dark:stroke-[#a58cff]" key={`${previous.key}:${point.key}`} strokeLinecap="round" strokeWidth="3" x1={30 + index * spacing} x2={30 + (index + 1) * spacing} y1={145 - previous.contextPercent * 1.2} y2={145 - point.contextPercent * 1.2} />;
+                })}
+                {chartUsage.map((point, index) => point.contextPercent === null ? null : <g key={point.key}><circle className="fill-white stroke-[#6f56d9] dark:fill-[#1b1921] dark:stroke-[#a58cff]" cx={30 + (chartUsage.length === 1 ? 270 : index * (540 / (chartUsage.length - 1)))} cy={145 - point.contextPercent * 1.2} r="4" strokeWidth="3" /><text className="fill-[#6f6a7d] text-[9px] dark:fill-[#aaa3b7]" textAnchor="middle" x={30 + (chartUsage.length === 1 ? 270 : index * (540 / (chartUsage.length - 1)))} y="163">#{point.sequenceNumber}</text></g>)}
+              </svg>
+            </figure>
+          </div>}
+          {recentUsage.length > 0 ? <div className="mt-3 max-h-[420px] overflow-auto rounded-xl border border-[#dedbea] outline-offset-2 focus-visible:outline-3 focus-visible:outline-[#6f56d9]/32 dark:border-[#373241] dark:focus-visible:outline-[#a58cff]/32" role="region" aria-label="Recent prompt token activity" tabIndex={0}>
+            <table className="w-full min-w-[680px] border-collapse text-sm">
+              <caption className="sr-only">Recent prompt activity with context, cached input, new input, output, and elapsed time</caption>
+              <thead><tr className={`text-left text-[11px] uppercase tracking-wide ${mutedTextClass}`}><th className="px-4 py-3 font-semibold" scope="col">Prompt</th><th className="px-3 py-3 font-semibold" scope="col">Context</th><th className="px-3 py-3 text-right font-semibold" scope="col">Cached</th><th className="px-3 py-3 text-right font-semibold" scope="col">New input</th><th className="px-3 py-3 text-right font-semibold" scope="col">Output</th><th className="px-4 py-3 text-right font-semibold" scope="col">Elapsed</th></tr></thead>
+              <tbody>{recentUsage.map(point => {
+                const episode = directiveByInteraction.get(point.key);
+                const expanded = Boolean(expandedPromptDetails[point.key]);
+                const detailId = `prompt-detail-${point.sequenceNumber}`;
+                const patternSignal = episode?.discovery.patternBeforeFirstChange === true ? 'Pattern found before editing' : episode?.discovery.patternBeforeFirstChange === false ? 'Pattern found after editing' : 'No pattern timing observed';
+                return <Fragment key={point.key}>
+                  <tr className="border-t border-[#dedbea] dark:border-[#373241]"><th className="px-4 py-3 text-left font-normal" scope="row"><span className="flex flex-wrap items-center gap-2"><strong>#{point.sequenceNumber}</strong>{point.status === 'active' && <span className="rounded-full bg-[#e8f6eb] px-2 py-0.5 text-[10px] font-semibold text-[#236534] dark:bg-[#203a28] dark:text-[#9ce0ad]">live</span>}{episode && <span className="rounded-full bg-[#f0ebff] px-2 py-0.5 text-[10px] font-semibold text-[#5d43c5] dark:bg-[#332b46] dark:text-[#c7b8ff]">change-backed</span>}</span><span className={`mt-0.5 block text-xs ${mutedTextClass}`}>{openingKindLabel(point.kind)}</span>{episode && <button aria-controls={detailId} aria-expanded={expanded} className="mt-1 rounded text-xs font-semibold text-[#5d43c5] outline-offset-2 hover:underline focus-visible:outline-3 focus-visible:outline-[#6f56d9]/32 dark:text-[#b8a6ff]" onClick={() => setExpandedPromptDetails(current => ({ ...current, [point.key]: !current[point.key] }))} type="button">{expanded ? 'Hide details' : 'Show details'}<span className="sr-only"> for prompt #{point.sequenceNumber}</span></button>}</th><td className="px-3 py-3">{point.contextPercent === null ? '—' : `${point.contextPercent.toFixed(1)}%`}</td><td className="px-3 py-3 text-right font-semibold">{point.cachedInputTokens === null ? '—' : compactNumber.format(point.cachedInputTokens)}</td><td className="px-3 py-3 text-right font-semibold">{point.newInputTokens === null ? '—' : compactNumber.format(point.newInputTokens)}</td><td className="px-3 py-3 text-right font-semibold">{point.outputTokens === null ? '—' : compactNumber.format(point.outputTokens)}</td><td className="px-4 py-3 text-right"><strong>{elapsedTime(point.durationMs)}</strong><span className={`mt-0.5 block text-[11px] ${mutedTextClass}`}>{point.measurement === 'unavailable' ? 'usage unavailable' : point.status}</span></td></tr>
+                  {episode && expanded && <tr className="bg-[#faf9fd] dark:bg-[#211e28]" id={detailId}><td className="px-4 py-4 text-xs" colSpan={6}><div className="grid grid-cols-3 gap-4 max-[760px]:grid-cols-1"><div><strong className="block">Preparation</strong><span className={mutedTextClass}>{episode.preparation.questions} questions · {episode.preparation.context} context · {episode.corrections} corrections{episode.preparation.patternReferences ? ` · ${episode.preparation.patternReferences} prior pattern refs` : ''}{episode.preparation.skillsUsed.length ? ` · ${episode.preparation.skillsUsed.join(', ')}` : ''}</span></div><div><strong className="block">Discovery</strong><span className={mutedTextClass}>{patternSignal}{episode.discovery.firstPatternLatencyMs === null ? '' : ` · ${(episode.discovery.firstPatternLatencyMs / 1_000).toFixed(1)}s`}{episode.discovery.skillsUsed.length ? ` · ${episode.discovery.skillsUsed.join(', ')}` : ''}</span></div><div><strong className="block">Execution</strong><span className={mutedTextClass}>{episode.execution.fileChanges} changes · {episode.execution.verificationBatches} verification run{episode.execution.verificationBatches === 1 ? '' : 's'} · {episode.execution.webSearches} searches · {episode.execution.delegations} delegations · {episode.execution.compactions} compactions</span></div></div><div className={`mt-3 ${mutedTextClass}`}>{Math.round(episode.classificationConfidence * 100)}% prompt classification confidence</div></td></tr>}
+                </Fragment>;
+              })}</tbody>
+            </table>
+          </div> : <div className="mt-3 rounded-xl border border-dashed border-[#c8c1df] p-5 text-sm dark:border-[#4d455e]"><strong>Waiting for prompt activity</strong><p className={`mt-2 ${mutedTextClass}`}>Token movement appears after a privacy-safe prompt boundary is observed.</p></div>}
         </section>
-        <section className={`${panelClass} mt-4 p-4`} aria-labelledby="directives-title">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"><h3 id="directives-title">Directive episodes</h3>{snapshot.directives?.available && <p className={`text-xs ${mutedTextClass}`}>{directiveEpisodes.length} change-backed · {directivePreparationQuestions} prep questions · {directiveVerifications}/{directiveEpisodes.length} with verification runs{patternTimingEpisodes.length ? ` · ${patternsBeforeChange}/${patternTimingEpisodes.length} pattern-first` : ''}</p>}</div>
-          {!snapshot.directives?.available && <p className={`mt-1 text-xs ${mutedTextClass}`}>Directive episodes are unavailable in this review.</p>}
-          {snapshot.directives?.available && <>
-            <p className={`mt-1 text-[11px] ${mutedTextClass}`}>Main-agent rollout only, newest first. Expand a row for preparation and discovery details.</p>
-            <div className="mt-3 grid max-h-[218px] gap-1.5 overflow-y-auto pr-1" aria-label="Change-backed directives, newest first" role="region">{directiveEpisodes.slice().reverse().map(episode => {
-              const patternSignal = episode.discovery.patternBeforeFirstChange === true ? 'Pattern found before editing' : episode.discovery.patternBeforeFirstChange === false ? 'Pattern found after editing' : 'No pattern timing observed';
-              return <details className="group rounded-xl border border-[#dedbea] dark:border-[#373241]" key={episode.key}>
-                <summary className="grid min-h-[66px] cursor-pointer list-none grid-cols-[auto_1fr_auto] items-center gap-2.5 px-3 py-2 marker:hidden">
-                  <span aria-hidden="true" className="text-xs transition-transform group-open:rotate-90">▶</span>
-                  <span className="min-w-0"><span className="flex items-center gap-2"><strong className="shrink-0">Directive {episode.sequenceNumber}</strong><span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${episode.execution.verificationBatches ? 'bg-[#e8f6eb] text-[#236534] dark:bg-[#203a28] dark:text-[#9ce0ad]' : 'bg-[#fff2d8] text-[#7a4b00] dark:bg-[#493716] dark:text-[#ffd58a]'}`}>{episode.execution.verificationBatches ? `${episode.execution.verificationBatches} verification run${episode.execution.verificationBatches === 1 ? '' : 's'}` : 'no verification run'}</span></span><span className={`mt-0.5 block truncate text-[11px] ${mutedTextClass}`}>{openingKindLabel(episode.openingKind)} · {episode.context.percentAtStart === null ? 'context unavailable' : `${episode.context.percentAtStart.toFixed(1)}% context`} · {cacheHitRate(episode.usageAtStart.inputTokens, episode.usageAtStart.cachedInputTokens)} cache</span></span>
-                  <span className="text-right text-xs"><strong className="block">{episode.execution.fileChanges} changes</strong><span className={`capitalize ${mutedTextClass}`}>{episode.status}</span></span>
-                </summary>
-                <div className="border-t border-[#dedbea] p-4 text-xs dark:border-[#373241]">
-                  <div className="grid grid-cols-2 gap-4 max-[700px]:grid-cols-1">
-                    <div><strong className="block">Preparation</strong><span className={mutedTextClass}>{episode.preparation.questions} questions · {episode.preparation.context} context · {episode.corrections} corrections{episode.preparation.patternReferences ? ` · ${episode.preparation.patternReferences} prior pattern refs` : ''}</span></div>
-                    <div><strong className="block">Discovery</strong><span className={mutedTextClass}>{patternSignal}{episode.discovery.firstPatternLatencyMs === null ? '' : ` · ${(episode.discovery.firstPatternLatencyMs / 1_000).toFixed(1)}s`}</span></div>
-                  </div>
-                  <div className={`mt-3 ${mutedTextClass}`}>{Math.round(episode.classificationConfidence * 100)}% prompt classification confidence · {episode.execution.webSearches} searches · {episode.execution.delegations} delegations · {episode.execution.compactions} compactions</div>
-                </div>
-              </details>;
-            })}{directiveEpisodes.length === 0 && <div className="rounded-xl border border-dashed border-[#c8c1df] p-5 text-sm dark:border-[#4d455e]">No prompts have produced an observable repository change in this session.</div>}</div>
-          </>}
-        </section>
+        <section className={`${panelClass} mt-6 p-6`}><h3>Skill routing</h3><p className={`mt-1 text-xs ${mutedTextClass}`}>Observed guidance reads by prompt. Downstream activity is correlated, not proof that a skill caused the work; skill contents and private reasoning are not retained.</p><SkillRoutingTree guidance={snapshot.guidance} directives={snapshot.directives} /></section>
         <div className="mt-6 grid grid-cols-[.8fr_1.2fr] gap-6 max-[850px]:grid-cols-1">
-          <section className={`${panelClass} p-6`}><h3>Technical activity</h3><p className={`mt-1 text-xs ${mutedTextClass}`}>Diagnostic session totals; directive episodes will provide the evaluative breakdown.</p><div className="mt-4 grid grid-cols-2 gap-3">{[['File changes', snapshot.evidence.fileChange ?? 0], ['Web searches', snapshot.evidence.webSearch ?? 0], ['Delegations', snapshot.evidence.delegation ?? 0], ['Compactions', snapshot.evidence.contextCompaction ?? 0]].map(([label, value]) => <div className="rounded-xl border border-[#dedbea] p-4 dark:border-[#373241]" key={label}><strong className="block text-xl">{value}</strong><span className={`text-xs ${mutedTextClass}`}>{label}</span></div>)}</div></section>
+          <section className={`${panelClass} p-6`}><h3>Technical activity</h3><p className={`mt-1 text-xs ${mutedTextClass}`}>Diagnostic session totals; expand change-backed prompts above for evaluative detail.</p><div className="mt-4 grid grid-cols-2 gap-3">{[['File changes', snapshot.evidence.fileChange ?? 0], ['Web searches', snapshot.evidence.webSearch ?? 0], ['Delegations', snapshot.evidence.delegation ?? 0], ['Compactions', snapshot.evidence.contextCompaction ?? 0]].map(([label, value]) => <div className="rounded-xl border border-[#dedbea] p-4 dark:border-[#373241]" key={label}><strong className="block text-xl">{value}</strong><span className={`text-xs ${mutedTextClass}`}>{label}</span></div>)}</div></section>
           <section className={`${panelClass} p-6`}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div><h3>Model and reasoning usage</h3><p className={`mt-1 text-xs ${mutedTextClass}`}>Expand either total for its model and reasoning breakdown.</p></div>
