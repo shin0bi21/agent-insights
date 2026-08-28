@@ -8,6 +8,9 @@ import type {
   StoredCodexSession,
   RunRecord,
   StartRunInput,
+  BenchmarkCatalog,
+  BenchmarkSchedule,
+  BenchmarkReadiness,
 } from './types';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -26,6 +29,17 @@ export const api = {
   providers: () => request<AgentProvider[]>('/api/providers'),
   runtime: () => request<RuntimeCapabilities>('/api/runtime'),
   runs: () => request<RunRecord[]>('/api/runs'),
+  benchmarkCatalog: () => request<BenchmarkCatalog>('/api/benchmark-catalog'),
+  benchmarkReadiness: (input: { repo: string; scenarioId: string }) => request<BenchmarkReadiness>(
+    '/api/benchmark-readiness', { method: 'POST', body: JSON.stringify(input) },
+  ),
+  benchmarkSchedules: () => request<BenchmarkSchedule[]>('/api/benchmark-schedules'),
+  createBenchmarkSchedule: (input: { repo: string; suiteId: string; provider: string; model: string; reasoningEffort: string; intervalMinutes: number; tokenCostConsent: boolean }) => request<{ suiteId: string; schedules: BenchmarkSchedule[] }>(
+    '/api/benchmark-schedules', { method: 'POST', body: JSON.stringify(input) },
+  ),
+  updateBenchmarkSchedule: (id: string, input: { enabled?: boolean; repo?: string; tokenCostConsent?: boolean }) => request<BenchmarkSchedule>(
+    `/api/benchmark-schedules/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(input) },
+  ),
   probeSessionSource: () => request<SessionSourceProbe>(
     '/api/session-source/probe',
     { method: 'POST', body: '{}' },

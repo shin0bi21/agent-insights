@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import type { AgentProvider, RunRecord, StartRunInput } from '../../types';
+import type { AgentProvider, BenchmarkCatalog, BenchmarkReadiness, BenchmarkSchedule, RunRecord, StartRunInput } from '../../types';
 import { eyebrowClass, mutedTextClass } from '../../ui';
 import CurrentRun from './components/CurrentRun/CurrentRun';
 import RunSetup from './components/RunSetup/RunSetup';
+import RecurringBenchmarks from './components/RecurringBenchmarks/RecurringBenchmarks';
 
 type RepositoryTone = 'idle' | 'checking' | 'ready' | 'error';
 
@@ -17,6 +18,7 @@ interface HomeProps {
   message: string;
   repositoryMessage: string;
   repositoryTone: RepositoryTone;
+  readiness: BenchmarkReadiness | null;
   onInputChange: (input: StartRunInput) => void;
   onRepositoryEdit: () => void;
   onBrowse: () => void;
@@ -25,6 +27,11 @@ interface HomeProps {
   onRefresh: () => void;
   onRetry: (run: RunRecord) => void;
   onViewHistory: () => void;
+  catalog: BenchmarkCatalog;
+  schedules: BenchmarkSchedule[];
+  scheduleMessage: string;
+  onCreateSchedule: (suiteId: string, intervalMinutes: number, consent: boolean) => void;
+  onToggleSchedule: (schedule: BenchmarkSchedule, enabled: boolean) => void;
 }
 
 export default function Home(props: HomeProps) {
@@ -83,6 +90,8 @@ export default function Home(props: HomeProps) {
           message={props.message}
           repositoryMessage={props.repositoryMessage}
           repositoryTone={props.repositoryTone}
+          readiness={props.readiness}
+          catalog={props.catalog}
           onInputChange={props.onInputChange}
           onRepositoryEdit={props.onRepositoryEdit}
           onBrowse={props.onBrowse}
@@ -97,6 +106,7 @@ export default function Home(props: HomeProps) {
           onRetry={props.onRetry}
         />
       </div>
+      <RecurringBenchmarks catalog={props.catalog} schedules={props.schedules} input={props.input} providers={props.providers} busy={props.busy} message={props.scheduleMessage} onCreate={props.onCreateSchedule} onToggle={props.onToggleSchedule} />
     </>
   );
 }

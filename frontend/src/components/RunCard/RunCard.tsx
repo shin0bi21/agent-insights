@@ -132,6 +132,8 @@ export default function RunCard({ run, now, retryDisabled, onRetry }: RunCardPro
         </div>
       </div>
 
+      {run.readiness?.status === 'not-evaluable' && <div className="mt-4 rounded-lg border border-[#bd3d52]/35 bg-[#bd3d52]/8 p-3 text-xs text-[#8f2f41] dark:border-[#ff8796]/35 dark:text-[#ff9ba7]" role="status"><strong className="block">Score unavailable: incompatible evaluation contract</strong><span className="mt-1 block">{run.readiness.findings.join(' ') || 'This run cannot support a valid performance score.'}</span></div>}
+
       {run.status === 'running' && run.activity?.length ? (
         <div className={liveActivityClass}>
           <div className="mb-3 flex items-center justify-between">

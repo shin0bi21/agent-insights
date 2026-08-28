@@ -61,6 +61,7 @@ export interface CreateRunMetadata {
   preparedPrompt: string;
   promptTemplateVersion: string;
   evaluationTemplate: string;
+  readiness?: { status: 'ready' | 'ready-with-limitations' | 'not-evaluable'; fingerprint: string; evidence: unknown; findings: string[] };
   requestedRepetitions?: number;
   requestedReviewPasses?: number;
   provider: string;
@@ -249,6 +250,10 @@ export function createRunPersistence(database: Kysely<Database>) {
         prepared_prompt: metadata.preparedPrompt,
         prompt_template_version: metadata.promptTemplateVersion,
         evaluation_template: metadata.evaluationTemplate,
+        evaluation_readiness_status: metadata.readiness?.status ?? null,
+        evaluation_readiness_fingerprint: metadata.readiness?.fingerprint ?? null,
+        evaluation_readiness_evidence_json: metadata.readiness ? safeJson(metadata.readiness.evidence) : null,
+        evaluation_readiness_findings_json: metadata.readiness ? safeJson(metadata.readiness.findings) : null,
         requested_repetitions: metadata.requestedRepetitions ?? 1,
         requested_review_passes: metadata.requestedReviewPasses ?? 0,
         status: 'queued',
@@ -319,14 +324,23 @@ export function createRunPersistence(database: Kysely<Database>) {
     const baseRevision = String(plan?.baseSha ?? results[0]?.productBaseSha ?? 'unknown');
     const repoPath = String(webRun.repo ?? plan?.repoRoot ?? 'unknown');
     const repositoryName = repoPath === 'unknown' ? 'Unknown repository' : basename(repoPath);
+    const preparedPrompt = text(resolve(directory, 'prompt.md'));
+    const normalizedReadiness = webRun.readiness ?? (preparedPrompt.includes('## User feature description') ? {
+      status: 'not-evaluable', fingerprint: null, evidence: {},
+      findings: ['Legacy run combined a pinned evaluator prompt with an arbitrary feature request; its score is incompatible.'],
+    } : null);
     await database.transaction().execute(async trx => {
       if (existing) await trx.deleteFrom('runs').where('id', '=', webRun.id).execute();
       await trx.insertInto('runs').values({
         id: webRun.id, repository_name: repositoryName, base_revision: baseRevision,
         guidance_revision: plan?.guidance?.ref ?? results[0]?.guidance?.ref ?? null, working_tree_dirty: 0,
         feature_type: webRun.featureType ?? plan?.featureType ?? 'full-stack', description: String(webRun.description ?? ''),
-        prepared_prompt: text(resolve(directory, 'prompt.md')), prompt_template_version: `legacy:${plan?.scenario ?? 'unknown'}`,
+        prepared_prompt: preparedPrompt, prompt_template_version: String(webRun.promptTemplateVersion ?? `legacy:${plan?.scenario ?? 'unknown'}`),
         evaluation_template: String(plan?.scenario ?? comparison?.scenario ?? 'unknown'),
+        evaluation_readiness_status: normalizedReadiness?.status ?? null,
+        evaluation_readiness_fingerprint: normalizedReadiness?.fingerprint ?? null,
+        evaluation_readiness_evidence_json: normalizedReadiness ? safeJson(normalizedReadiness.evidence) : null,
+        evaluation_readiness_findings_json: normalizedReadiness ? safeJson(normalizedReadiness.findings) : null,
         requested_repetitions: Number(plan?.matrix?.length ?? 1),
         requested_review_passes: 0, status, runner_version: 'legacy-artifact-import', provider_cli_version: null,
         created_at: createdAt, started_at: createdAt, completed_at: terminalStatuses.has(status) ? createdAt : null,
@@ -576,7 +590,7 @@ export function createRunPersistence(database: Kysely<Database>) {
         ...counts,
         [finding.contract_id]: (counts[finding.contract_id] ?? 0) + 1,
       }), {});
-    const comparison = summary && latestEvaluation ? {
+    const comparison = summary && latestEvaluation && run.evaluation_readiness_status !== 'not-evaluable' ? {
       comparison: [{
         medianScore: median(attempts.flatMap(attempt => (
           attempt.final_score === null ? [] : [attempt.final_score]
@@ -601,6 +615,13 @@ export function createRunPersistence(database: Kysely<Database>) {
       reasoningEffort: run.reasoningEffort,
       featureType: run.feature_type,
       description: run.description,
+      scenarioId: run.evaluation_template,
+      readiness: run.evaluation_readiness_status ? {
+        status: run.evaluation_readiness_status,
+        fingerprint: run.evaluation_readiness_fingerprint,
+        evidence: JSON.parse(run.evaluation_readiness_evidence_json ?? '{}'),
+        findings: JSON.parse(run.evaluation_readiness_findings_json ?? '[]'),
+      } : null,
       preparedPrompt: run.prepared_prompt,
       comparison,
     };

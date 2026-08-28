@@ -5,7 +5,7 @@ import Home from './pages/Home/Home';
 import Landing from './pages/Landing/Landing';
 import Settings, { type Theme } from './pages/Settings/Settings';
 import Sessions from './pages/Sessions/Sessions';
-import type { AgentProvider, RunRecord, StartRunInput } from './types';
+import type { AgentProvider, BenchmarkCatalog, BenchmarkReadiness, BenchmarkSchedule, RunRecord, StartRunInput } from './types';
 
 const emptyRun: StartRunInput = {
   repo: '',
@@ -14,6 +14,7 @@ const emptyRun: StartRunInput = {
   reasoningEffort: 'low',
   featureType: 'full-stack',
   description: '',
+  scenarioId: '',
 };
 const themeStorageKey = 'agent-insights-theme';
 type View = 'home' | 'benchmark' | 'history' | 'sessions' | 'settings';
@@ -64,6 +65,10 @@ export default function App() {
   const [providers, setProviders] = useState<AgentProvider[]>([]);
   const [directoryPickerAvailable, setDirectoryPickerAvailable] = useState(false);
   const [runs, setRuns] = useState<RunRecord[]>([]);
+  const [benchmarkCatalog, setBenchmarkCatalog] = useState<BenchmarkCatalog>({ scenarios: [], suites: [] });
+  const [benchmarkSchedules, setBenchmarkSchedules] = useState<BenchmarkSchedule[]>([]);
+  const [benchmarkReadiness, setBenchmarkReadiness] = useState<BenchmarkReadiness | null>(null);
+  const [scheduleMessage, setScheduleMessage] = useState('');
   const [message, setMessage] = useState('');
   const [repositoryMessage, setRepositoryMessage] = useState('');
   const [repositoryTone, setRepositoryTone] = useState<RepositoryTone>('idle');
@@ -92,17 +97,30 @@ export default function App() {
     }
   }, []);
 
+  const loadSchedules = useCallback(async () => {
+    try { setBenchmarkSchedules(await api.benchmarkSchedules()); }
+    catch (error) { setScheduleMessage((error as Error).message); }
+  }, []);
+
   useEffect(() => {
     const revision = ++runLoadRevision.current;
     void Promise.all([
       api.providers(),
       api.runs(),
       api.runtime().catch(() => ({ directoryPickerAvailable: false, repositoryPath: null })),
+      api.benchmarkCatalog().catch(() => ({ scenarios: [], suites: [] })),
+      api.benchmarkSchedules().catch(() => []),
     ])
-      .then(([catalog, history, runtime]) => {
+      .then(([catalog, history, runtime, benchmarkDefinitions, schedules]) => {
         const firstProvider = catalog[0];
         setProviders(catalog);
         setDirectoryPickerAvailable(runtime.directoryPickerAvailable);
+        setBenchmarkCatalog(
+          benchmarkDefinitions && Array.isArray(benchmarkDefinitions.scenarios) && Array.isArray(benchmarkDefinitions.suites)
+            ? benchmarkDefinitions
+            : { scenarios: [], suites: [] },
+        );
+        setBenchmarkSchedules(Array.isArray(schedules) && schedules.every(item => item && typeof item === 'object' && 'scenarioId' in item) ? schedules : []);
         if (revision === runLoadRevision.current) {
           setRuns(history);
         }
@@ -111,6 +129,8 @@ export default function App() {
           repo: current.repo || runtime.repositoryPath || '',
           provider: firstProvider?.id ?? '',
           model: firstProvider?.models[0]?.id ?? '',
+          scenarioId: current.scenarioId || benchmarkDefinitions.scenarios?.[0]?.id || '',
+          description: current.description || benchmarkDefinitions.scenarios?.[0]?.title || '',
         }));
       })
       .catch(error => setMessage((error as Error).message));
@@ -128,6 +148,12 @@ export default function App() {
     return () => window.clearInterval(timer);
   }, [runInProgress]);
 
+  useEffect(() => {
+    if (view !== 'benchmark') return;
+    const timer = window.setInterval(() => void loadSchedules(), 30_000);
+    return () => window.clearInterval(timer);
+  }, [view, loadSchedules]);
+
   async function connect(repo = input.repo) {
     setRepositoryMessage('Connecting…');
     setRepositoryTone('checking');
@@ -135,12 +161,18 @@ export default function App() {
       const result = await api.connectRepository(repo);
       setInput(current => ({ ...current, repo: result.repo }));
       setConnectedRepo(result.repo);
+      const scenarioId = input.scenarioId || benchmarkCatalog.scenarios[0]?.id;
+      const readiness = scenarioId ? await api.benchmarkReadiness({ repo: result.repo, scenarioId }) : null;
+      setBenchmarkReadiness(readiness);
       setRepositoryMessage(
-        `Repository ready. AGENTS.md and ${result.skills.length} skill${result.skills.length === 1 ? '' : 's'} discovered.`,
+        readiness?.status === 'not-evaluable'
+          ? 'Repository connected, but this benchmark is not evaluable.'
+          : `Repository ready. AGENTS.md and ${result.skills.length} skill${result.skills.length === 1 ? '' : 's'} discovered.`,
       );
-      setRepositoryTone('ready');
+      setRepositoryTone(readiness?.status === 'not-evaluable' ? 'error' : 'ready');
     } catch (error) {
       setConnectedRepo('');
+      setBenchmarkReadiness(null);
       setRepositoryMessage((error as Error).message);
       setRepositoryTone('error');
     }
@@ -195,6 +227,7 @@ export default function App() {
       reasoningEffort: run.reasoningEffort,
       featureType: run.featureType ?? 'full-stack',
       description: run.description,
+      scenarioId: run.scenarioId,
     };
     setBusy(true);
     setMessage('');
@@ -209,6 +242,26 @@ export default function App() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function createSchedule(suiteId: string, intervalMinutes: number, tokenCostConsent: boolean) {
+    setBusy(true); setScheduleMessage('');
+    try {
+      const result = await api.createBenchmarkSchedule({ repo: input.repo, suiteId, provider: input.provider, model: input.model, reasoningEffort: input.reasoningEffort, intervalMinutes, tokenCostConsent });
+      setBenchmarkSchedules(current => [...result.schedules, ...current]);
+      setScheduleMessage(`Scheduled ${result.schedules.length} compatible scenarios.`);
+    } catch (error) { setScheduleMessage((error as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  async function toggleSchedule(schedule: BenchmarkSchedule, enabled: boolean) {
+    setBusy(true); setScheduleMessage('');
+    try {
+      const updated = await api.updateBenchmarkSchedule(schedule.id, { enabled, repo: enabled ? input.repo : undefined, tokenCostConsent: enabled });
+      setBenchmarkSchedules(current => current.map(item => item.id === updated.id ? { ...item, ...updated } : item));
+      setScheduleMessage(enabled ? 'Schedule enabled.' : 'Schedule disabled.');
+    } catch (error) { setScheduleMessage((error as Error).message); }
+    finally { setBusy(false); }
   }
 
   return (
@@ -264,7 +317,14 @@ export default function App() {
             message={message}
             repositoryMessage={repositoryMessage}
             repositoryTone={repositoryTone}
-            onInputChange={setInput}
+            readiness={benchmarkReadiness}
+            onInputChange={next => {
+              setInput(next);
+              if (next.scenarioId !== input.scenarioId) {
+                setBenchmarkReadiness(null); setConnectedRepo(''); setRepositoryTone('idle');
+                setRepositoryMessage('Reconnect to evaluate the selected scenario.');
+              }
+            }}
             onRepositoryEdit={() => {
               setConnectedRepo('');
               setRepositoryMessage('');
@@ -276,6 +336,11 @@ export default function App() {
             onRefresh={() => void loadRuns()}
             onRetry={run => void retry(run)}
             onViewHistory={() => setView('history')}
+            catalog={benchmarkCatalog}
+            schedules={benchmarkSchedules}
+            scheduleMessage={scheduleMessage}
+            onCreateSchedule={(suiteId, intervalMinutes, consent) => void createSchedule(suiteId, intervalMinutes, consent)}
+            onToggleSchedule={(schedule, enabled) => void toggleSchedule(schedule, enabled)}
           />
         )}
         {view === 'history' && (

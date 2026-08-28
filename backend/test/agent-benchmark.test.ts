@@ -6,10 +6,13 @@ import { tmpdir } from 'node:os';
 import { PassThrough } from 'node:stream';
 import test from 'node:test';
 import { resolve } from 'node:path';
+import { closeDatabase, createDatabase } from '../src/db/client.js';
 import { buildImplementationReview, gradeStructure } from '../src/grade-agent-benchmark.js';
 import { normalizeCodexNotification, normalizeCodexThread } from '../src/services/codex-session-source.js';
+import { loadBenchmarkCatalog } from '../src/services/benchmark-catalog.js';
+import { assessBenchmarkReadiness } from '../src/services/benchmark-readiness.js';
 import { parseJsonLines, spawnWithCapture, summarizeEvents } from '../src/agent-benchmark-lib.js';
-import { codexArguments, comparison, dockerComposeIsolationOverride, parseArguments } from '../src/run-agent-benchmark.js';
+import { applyGuidanceSnapshot, codexArguments, comparison, dockerComposeIsolationOverride, parseArguments, resolveFeatureType } from '../src/run-agent-benchmark.js';
 import {
   benchmarkRunnerInvocation,
   chooseRepositoryDirectory,
@@ -51,6 +54,47 @@ test('parses a bounded benchmark matrix', () => {
   );
 });
 
+test('uses scenario feature scope unless the CLI explicitly overrides it', () => {
+  assert.equal(resolveFeatureType(undefined, 'frontend'), 'frontend');
+  assert.equal(resolveFeatureType('backend', 'frontend'), 'backend');
+  assert.equal(resolveFeatureType(undefined, undefined), 'full-stack');
+  assert.throws(() => resolveFeatureType(undefined, 'mobile'), /Unsupported scenario feature type/);
+});
+
+test('blocks an unevaluable scenario before provider execution', () => {
+  const repo = mkdtempSync(resolve(tmpdir(), 'agent-insights-readiness-'));
+  try {
+    execFileSync('git', ['init', '--quiet'], { cwd: repo });
+    mkdirSync(resolve(repo, 'docs/features'), { recursive: true });
+    mkdirSync(resolve(repo, 'frontend/src/pages/Example'), { recursive: true });
+    mkdirSync(resolve(repo, 'backend/src/example'), { recursive: true });
+    mkdirSync(resolve(repo, 'scripts/tests'), { recursive: true });
+    writeFileSync(resolve(repo, 'AGENTS.md'), '# Guidance\n');
+    writeFileSync(resolve(repo, 'docs/features/example.md'), '# Example pattern\n');
+    writeFileSync(resolve(repo, 'frontend/src/pages/Example/Example.tsx'), 'export {};\n');
+    writeFileSync(resolve(repo, 'backend/src/example/exampleService.ts'), 'export {};\n');
+    writeFileSync(resolve(repo, 'scripts/tests/example.sh'), '#!/bin/sh\n');
+    execFileSync('git', ['add', '.'], { cwd: repo });
+    execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '--quiet', '-m', 'fixture'], { cwd: repo });
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
+    const scenario = { id: 'example', version: 1, title: 'Example', featureType: 'frontend' as const, promptFile: '', fingerprint: 'fixture', baseRef: sha, guidanceRef: sha, referenceRef: sha, guidancePaths: ['AGENTS.md', 'docs/features'], checkCommands: [['bash', 'scripts/tests/example.sh']], patternGlobs: ['frontend/src/pages/Example/*.tsx'] };
+    assert.equal(assessBenchmarkReadiness(repo, scenario).status, 'ready');
+    const missingCheck = assessBenchmarkReadiness(repo, { ...scenario, checkCommands: [['bash', 'scripts/tests/missing.sh']] });
+    assert.equal(missingCheck.status, 'not-evaluable');
+    assert.match(missingCheck.findings.join(' '), /verification entry point is missing/);
+    execFileSync('git', ['rm', 'scripts/tests/example.sh'], { cwd: repo });
+    execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '--quiet', '-m', 'remove runner'], { cwd: repo });
+    const overlaidCheck = assessBenchmarkReadiness(repo, { ...scenario, baseRef: 'HEAD', guidanceRef: sha, guidancePaths: [...scenario.guidancePaths, 'scripts/tests/example.sh'] });
+    assert.notEqual(overlaidCheck.status, 'not-evaluable');
+    const inferred = assessBenchmarkReadiness(repo, { ...scenario, guidancePaths: [], patternGlobs: [] });
+    assert.equal(inferred.status, 'ready-with-limitations');
+    assert.equal(inferred.evidence.inferredAnalogues.length, 2);
+    const noPatterns = assessBenchmarkReadiness(repo, { ...scenario, id: 'unrelated', title: 'Unrelated', guidancePaths: [], patternGlobs: [] });
+    assert.equal(noPatterns.status, 'not-evaluable');
+    assert.match(noPatterns.findings.join(' '), /No applicable guidance|No documented/);
+  } finally { rmSync(repo, { recursive: true, force: true }); }
+});
+
 test('accepts a prepared prompt file for web-launched runs', () => {
   const options = parseArguments(['--repo', '/tmp/app', '--scenario', 'tasks-page', '--prompt-file', '/tmp/prompt.md']);
   assert.equal(options.promptFile, '/tmp/prompt.md');
@@ -80,6 +124,69 @@ test('generates scenario-owned Docker Compose isolation deterministically', () =
   ].join('\n'));
   assert.throws(() => dockerComposeIsolationOverride([]), /at least one/);
   assert.throws(() => dockerComposeIsolationOverride(['db\nmalicious: true']), /Unsafe/);
+});
+
+test('loads the versioned representative benchmark suite', () => {
+  const catalog = loadBenchmarkCatalog(process.cwd());
+  const suite = catalog.suite('sharpness-core');
+  assert.deepEqual(suite.scenarioIds, [
+    'homepage-active-navigation',
+    'centralize-account-list-policy',
+    'row-local-table-mutations',
+  ]);
+  assert.deepEqual(suite.scenarioIds.map(id => catalog.scenario(id).featureType), ['frontend', 'backend', 'frontend']);
+  assert.equal(catalog.scenario('tasks-page').version, 7);
+  for (const id of suite.scenarioIds) {
+    const manifest = JSON.parse(readFileSync(resolve(process.cwd(), 'benchmarks', id, 'manifest.json'), 'utf8'));
+    assert.equal([...manifest.checks, ...manifest.requirements].reduce((sum, item) => sum + item.points, 0), 100);
+    assert.match(catalog.scenario(id).fingerprint, /^[a-f0-9]{64}$/);
+  }
+  assert.throws(() => catalog.scenario('../tasks-page'), /Unsupported/);
+});
+
+test('stages only guidance files resolved from the pinned guidance ref', () => {
+  const directory = mkdtempSync(resolve(tmpdir(), 'agent-benchmark-guidance-'));
+  const worktree = resolve(directory, 'worktree');
+  try {
+    execFileSync('git', ['init', '--quiet'], { cwd: directory });
+    writeFileSync(resolve(directory, 'README.md'), '# Baseline\n');
+    execFileSync('git', ['add', 'README.md'], { cwd: directory });
+    execFileSync('git', [
+      '-c', 'user.name=Benchmark Test',
+      '-c', 'user.email=benchmark-test@local.invalid',
+      'commit', '--quiet', '-m', 'baseline',
+    ], { cwd: directory });
+    const baseline = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: directory, encoding: 'utf8' }).trim();
+
+    mkdirSync(resolve(directory, '.agents/skills/example'), { recursive: true });
+    writeFileSync(resolve(directory, 'AGENTS.md'), '# Pinned guidance\n');
+    writeFileSync(resolve(directory, '.agents/skills/example/SKILL.md'), '# Example skill\n');
+    execFileSync('git', ['add', 'AGENTS.md', '.agents/skills/example/SKILL.md'], { cwd: directory });
+    execFileSync('git', [
+      '-c', 'user.name=Benchmark Test',
+      '-c', 'user.email=benchmark-test@local.invalid',
+      'commit', '--quiet', '-m', 'guidance',
+    ], { cwd: directory });
+    const guidanceRef = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: directory, encoding: 'utf8' }).trim();
+    execFileSync('git', ['worktree', 'add', '--quiet', '--detach', worktree, baseline], { cwd: directory });
+
+    const snapshot = applyGuidanceSnapshot({
+      repoRoot: directory,
+      worktree,
+      guidance: {
+        ref: guidanceRef,
+        paths: ['AGENTS.md', '.agents/skills', '.missing-guidance-directory'],
+      },
+    });
+
+    assert.notEqual(snapshot, baseline);
+    assert.equal(readFileSync(resolve(worktree, 'AGENTS.md'), 'utf8'), '# Pinned guidance\n');
+    assert.equal(readFileSync(resolve(worktree, '.agents/skills/example/SKILL.md'), 'utf8'), '# Example skill\n');
+    assert.equal(existsSync(resolve(worktree, '.missing-guidance-directory')), false);
+    assert.equal(execFileSync('git', ['status', '--short'], { cwd: worktree, encoding: 'utf8' }), '');
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test('parses JSONL and totals usage without losing the final message', () => {
@@ -348,6 +455,7 @@ test('run manager normalizes a finished process before removing its temporary di
   try {
     mkdirSync(resolve(root, 'benchmarks/tasks-page'), { recursive: true });
     writeFileSync(resolve(root, 'benchmarks/tasks-page/prompt.md'), '# Scenario\nBuild it.\n');
+    writeFileSync(resolve(root, 'benchmarks/tasks-page/manifest.json'), JSON.stringify({ id: 'tasks-page', version: 1, title: 'Tasks', featureType: 'frontend', promptFile: 'prompt.md', baseRef: 'HEAD', guidance: { ref: 'HEAD', paths: ['AGENTS.md'] }, checks: [{ command: ['git', 'diff', '--check'] }], reviewSections: [{ items: [{ patterns: ['AGENTS.md'] }] }] }));
     execFileSync('git', ['init', '--quiet'], { cwd: repo });
     writeFileSync(resolve(repo, 'AGENTS.md'), '# Guidance\n');
     const skill = resolve(repo, '.agents/skills/develop-feature');
@@ -356,8 +464,12 @@ test('run manager normalizes a finished process before removing its temporary di
     execFileSync('git', ['add', '.'], { cwd: repo });
     execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '--quiet', '-m', 'fixture'], { cwd: repo });
     const manager = createRunManager({ root, spawnProcess: () => child });
-    const run = await manager.start({ repo, provider: 'codex', model: 'gpt-5.6-luna', reasoningEffort: 'low', featureType: 'frontend', description: 'Build it.' });
+    const run = await manager.start({ repo, scenarioId: 'tasks-page', provider: 'codex', model: 'gpt-5.6-luna', reasoningEffort: 'low', featureType: 'frontend', description: 'Build it.' });
     assert.equal(existsSync(run.artifactPath), true);
+    await assert.rejects(
+      manager.start({ repo, scenarioId: 'tasks-page', provider: 'codex', model: 'gpt-5.6-luna', reasoningEffort: 'low', featureType: 'frontend', description: 'Overlap.' }),
+      error => error.status === 409 && /already active/.test(error.message),
+    );
     child.emit('close', 1);
     for (let attempt = 0; attempt < 50 && existsSync(run.artifactPath); attempt += 1) await new Promise(resolveWait => setTimeout(resolveWait, 10));
     assert.equal(existsSync(run.artifactPath), false);
@@ -369,8 +481,57 @@ test('run manager normalizes a finished process before removing its temporary di
   }
 });
 
+test('recurring suite requires consent, advances one due scenario, and audits its run', async () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'agent-insights-scheduler-'));
+  const repo = mkdtempSync(resolve(tmpdir(), 'agent-insights-scheduled-target-'));
+  const child = new EventEmitter() as EventEmitter & { stdout: PassThrough; stderr: PassThrough };
+  child.stdout = new PassThrough(); child.stderr = new PassThrough();
+  try {
+    mkdirSync(resolve(root, 'benchmarks/scenario-a'), { recursive: true });
+    mkdirSync(resolve(root, 'benchmarks/suites'), { recursive: true });
+    writeFileSync(resolve(root, 'benchmarks/scenario-a/prompt.md'), '# Scenario A\n');
+    writeFileSync(resolve(root, 'benchmarks/scenario-a/manifest.json'), JSON.stringify({ id: 'scenario-a', version: 1, title: 'Scenario A', featureType: 'frontend', promptFile: 'prompt.md', baseRef: 'HEAD', guidance: { ref: 'HEAD', paths: ['AGENTS.md'] }, checks: [{ command: ['git', 'diff', '--check'] }], reviewSections: [{ items: [{ patterns: ['AGENTS.md'] }] }] }));
+    writeFileSync(resolve(root, 'benchmarks/suites/suite-a.json'), JSON.stringify({ id: 'suite-a', version: 1, title: 'Suite A', scenarioIds: ['scenario-a'] }));
+    execFileSync('git', ['init', '--quiet'], { cwd: repo });
+    writeFileSync(resolve(repo, 'AGENTS.md'), '# Guidance\n');
+    mkdirSync(resolve(repo, '.agents/skills/develop-feature'), { recursive: true });
+    writeFileSync(resolve(repo, '.agents/skills/develop-feature/SKILL.md'), '---\nname: develop-feature\ndescription: Build.\n---\n');
+    execFileSync('git', ['add', '.'], { cwd: repo });
+    execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '--quiet', '-m', 'fixture'], { cwd: repo });
+    const manager = createRunManager({ root, spawnProcess: () => child, schedulePollMs: 3_600_000 });
+    await assert.rejects(manager.createSuiteSchedule({ repo, suiteId: 'suite-a', provider: 'codex', model: 'gpt-5.6-luna', reasoningEffort: 'low', intervalMinutes: 1440, tokenCostConsent: false }), /explicit token-cost consent/);
+    const created = await manager.createSuiteSchedule({ repo, suiteId: 'suite-a', provider: 'codex', model: 'gpt-5.6-luna', reasoningEffort: 'low', intervalMinutes: 1440, tokenCostConsent: true });
+    const database = createDatabase(resolve(root, 'data/agent-insights.sqlite'));
+    await database.updateTable('benchmark_schedules').set({ next_run_at: '2020-01-01T00:00:00.000Z' }).where('id', '=', created.schedules[0].id).execute();
+    await closeDatabase(database);
+    await manager.runDueSchedule();
+    const [scheduled] = await manager.listSchedules();
+    assert.equal(scheduled.trend.length, 1);
+    assert.equal(scheduled.trend[0].outcome, 'started');
+    assert.match(scheduled.trend[0].runId, /^run-/);
+    assert.ok(Date.parse(scheduled.nextRunAt) > Date.now());
+    child.emit('close', 1);
+    for (let attempt = 0; attempt < 50 && (await manager.get(scheduled.trend[0].runId))?.status === 'running'; attempt += 1) {
+      await new Promise(resolveWait => setTimeout(resolveWait, 10));
+    }
+    assert.equal((await manager.get(scheduled.trend[0].runId))?.status, 'failed');
+    await manager.close();
+
+    const restarted = createRunManager({ root, schedulePollMs: 3_600_000 });
+    assert.equal((await restarted.listSchedules())[0].connected, false);
+    await assert.rejects(restarted.updateSchedule(created.schedules[0].id, { enabled: true, repo, tokenCostConsent: false }), /renewed token-cost consent/);
+    await assert.rejects(restarted.updateSchedule(created.schedules[0].id, { enabled: true, tokenCostConsent: true }), /Reconnect the original repository/);
+    assert.equal((await restarted.updateSchedule(created.schedules[0].id, { enabled: true, repo, tokenCostConsent: true }))?.connected, true);
+    await restarted.close();
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 test('agent activity collapses live event updates into a meaningful tree', () => {
   const source = [
+    { type: 'item.completed', item: { id: 'command-guidance', type: 'command_execution', command: "sed -n '1,200p' AGENTS.md .agents/skills/develop-feature/SKILL.md .codex/plugins/cache/deep-research-work/0.1.0/skills/deep-research/SKILL.md", status: 'completed', exit_code: 0 } },
     { type: 'item.completed', item: { id: 'message-1', type: 'agent_message', text: 'Inspecting the existing task patterns.' } },
     { type: 'item.started', item: { id: 'command-1', type: 'command_execution', command: "npm test", status: 'in_progress', exit_code: null } },
     { type: 'item.completed', item: { id: 'command-1', type: 'command_execution', command: "npm test", status: 'completed', exit_code: 0 } },
@@ -382,4 +543,8 @@ test('agent activity collapses live event updates into a meaningful tree', () =>
   assert.equal(activity.find(item => item.id === 'command-1').label, 'Running tests');
   assert.match(activity.find(item => item.id === 'files-1').detail, /frontend\/src\/Tasks.tsx/);
   assert.equal(activity.some(item => item.detail.includes('private reasoning')), false);
+  assert.equal(activity.find(item => item.id === 'guidance-routing')?.label, 'Guidance routing');
+  assert.equal(activity.find(item => item.id === 'guidance-skill-develop-feature')?.label, 'Read skill: develop-feature');
+  assert.equal(activity.find(item => item.id === 'guidance-skill-deep-research-work:deep-research')?.label, 'Read skill: deep-research-work:deep-research');
+  assert.match(activity.find(item => item.id === 'guidance-skill-develop-feature')?.detail ?? '', /not retained/);
 });

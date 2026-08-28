@@ -22,6 +22,10 @@ test('Express API preserves run routes with an injected manager', async () => {
     list: () => [{ id: 'run-1' }],
     get: id => id === 'run-1' ? { id } : null,
     start: input => { calls.push(input); return { id: 'run-2', ...input }; },
+    catalog: () => ({ scenarios: [{ id: 'scenario-1' }], suites: [{ id: 'suite-1' }] }),
+    listSchedules: () => [{ id: 'schedule-1', enabled: true }],
+    createSuiteSchedule: input => ({ suiteId: input.suiteId, schedules: [{ id: 'schedule-2' }] }),
+    updateSchedule: (id, input) => id === 'schedule-1' ? { id, ...input } : null,
   };
   const app = createBenchmarkApp({
     root: process.cwd(),
@@ -42,6 +46,15 @@ test('Express API preserves run routes with an injected manager', async () => {
 
     const providerResponse = await fetch(`${origin}/api/providers`);
     assert.deepEqual(await providerResponse.json(), [{ id: 'codex' }]);
+
+    assert.deepEqual(await fetch(`${origin}/api/benchmark-catalog`).then(response => response.json()), { scenarios: [{ id: 'scenario-1' }], suites: [{ id: 'suite-1' }] });
+    assert.deepEqual(await fetch(`${origin}/api/benchmark-schedules`).then(response => response.json()), [{ id: 'schedule-1', enabled: true }]);
+    const scheduled = await fetch(`${origin}/api/benchmark-schedules`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ suiteId: 'suite-1', tokenCostConsent: true }) });
+    assert.equal(scheduled.status, 201);
+    assert.deepEqual(await scheduled.json(), { suiteId: 'suite-1', schedules: [{ id: 'schedule-2' }] });
+    const disabled = await fetch(`${origin}/api/benchmark-schedules/schedule-1`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled: false }) });
+    assert.deepEqual(await disabled.json(), { id: 'schedule-1', enabled: false });
+    assert.equal((await fetch(`${origin}/api/benchmark-schedules/missing`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: '{}' })).status, 404);
 
     const runtimeResponse = await fetch(`${origin}/api/runtime`);
     assert.deepEqual(await runtimeResponse.json(), {
@@ -164,5 +177,19 @@ test('Express API returns JSON for validation, parse, and not-found failures', a
     assert.equal(malformed.status, 400);
     const payload = await malformed.json();
     assert.match(payload.error, /JSON|Unexpected/i);
+  });
+});
+
+test('benchmark readiness stays behind the repository boundary', async () => {
+  const calls: unknown[] = [];
+  const app = createBenchmarkApp({
+    root: process.cwd(),
+    manager: { list: () => [], get: () => null, start: () => null, readiness: input => { calls.push(input); return { status: 'not-evaluable', findings: ['No patterns.'] }; } },
+  });
+  await withApp(app, async origin => {
+    const response = await fetch(`${origin}/api/benchmark-readiness`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ repo: '/tmp/repo', scenarioId: 'example' }) });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).status, 'not-evaluable');
+    assert.deepEqual(calls, [{ repo: '/tmp/repo', scenarioId: 'example' }]);
   });
 });

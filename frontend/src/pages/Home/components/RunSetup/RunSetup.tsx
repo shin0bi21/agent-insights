@@ -1,6 +1,6 @@
 import type { RefObject } from 'react';
 import FloatingSelect from '../../../../common/components/FloatingSelect/FloatingSelect';
-import type { AgentProvider, StartRunInput } from '../../../../types';
+import type { AgentProvider, BenchmarkCatalog, BenchmarkReadiness, StartRunInput } from '../../../../types';
 import { focusRingClass } from '../../../../ui';
 
 type RepositoryTone = 'idle' | 'checking' | 'ready' | 'error';
@@ -15,18 +15,14 @@ export interface RunSetupProps {
   message: string;
   repositoryMessage: string;
   repositoryTone: RepositoryTone;
+  readiness: BenchmarkReadiness | null;
+  catalog: BenchmarkCatalog;
   onInputChange: (input: StartRunInput) => void;
   onRepositoryEdit: () => void;
   onBrowse: () => void;
   onConnect: () => void;
   onSubmit: () => void;
 }
-
-const featureTypeOptions = [
-  { value: 'full-stack', label: 'Full stack' },
-  { value: 'frontend', label: 'Frontend' },
-  { value: 'backend', label: 'Backend' },
-];
 
 const reasoningOptions = [
   { value: 'low', label: 'Low' },
@@ -93,6 +89,8 @@ export default function RunSetup({
   message,
   repositoryMessage,
   repositoryTone,
+  readiness,
+  catalog,
   onInputChange,
   onRepositoryEdit,
   onBrowse,
@@ -187,23 +185,23 @@ export default function RunSetup({
         <fieldset className={fieldsetClass}>
           <legend className={legendClass}>
             <span className={stepNumberClass} aria-hidden="true">2</span>
-            Feature type
+            Benchmark scenario
           </legend>
           <div className="clear-both min-w-0 pt-1">
-            <label className="sr-only" htmlFor="feature-type">
-              What kind of feature is this?
+            <label className="sr-only" htmlFor="scenario">
+              Benchmark scenario
             </label>
             <FloatingSelect
-              id="feature-type"
-              value={input.featureType}
-              options={featureTypeOptions}
-              onChange={value => onInputChange({
-                ...input,
-                featureType: value as StartRunInput['featureType'],
-              })}
+              id="scenario"
+              value={input.scenarioId ?? ''}
+              options={catalog.scenarios.map(scenario => ({ value: scenario.id, label: scenario.title }))}
+              onChange={value => {
+                const scenario = catalog.scenarios.find(item => item.id === value);
+                onInputChange({ ...input, scenarioId: value, featureType: scenario?.featureType ?? input.featureType, description: scenario?.title ?? '' });
+              }}
             />
             <p className="mt-[9px] text-[.77rem] leading-[1.45] text-[#6f6a7d] dark:text-[#aaa3b7]">
-              AGENTS.md chooses the repository workflow.
+              The pinned prompt, patterns, and checks must form a runnable evaluation contract.
             </p>
           </div>
         </fieldset>
@@ -257,24 +255,11 @@ export default function RunSetup({
         <fieldset className={fieldsetClass}>
           <legend className={legendClass}>
             <span className={stepNumberClass} aria-hidden="true">4</span>
-            Feature request
+            Evaluation readiness
           </legend>
           <div className="clear-both min-w-0 pt-1">
-            <label className="sr-only" htmlFor="description">
-              What should the agent build?
-            </label>
-            <textarea
-              className={`w-full resize-y rounded-lg border border-[#c8c1df] bg-white px-[14px] py-[13px] leading-normal text-[#1d1929] dark:border-[#4d455e] dark:bg-[#1b1921] dark:text-[#f6f2fb] ${focusRingClass}`}
-              id="description"
-              value={input.description}
-              onChange={event => onInputChange({
-                ...input,
-                description: event.target.value,
-              })}
-              required
-              rows={3}
-              placeholder="What should the agent build?"
-            />
+            {!readiness && <p className="text-sm text-[#6f6a7d] dark:text-[#aaa3b7]">Connect the repository to build the zero-token evaluation contract.</p>}
+            {readiness && <div aria-live="polite" role="status"><strong className="capitalize">{readiness.status.replaceAll('-', ' ')}</strong><p className="mt-1 text-xs text-[#6f6a7d] dark:text-[#aaa3b7]">{readiness.evidence.patternDocuments.length} pattern documents · {readiness.evidence.analogues.length + readiness.evidence.inferredAnalogues.length} pattern examples · {readiness.evidence.verification.length} verification routes</p>{readiness.findings.length > 0 && <ul className="mt-2 list-disc pl-5 text-xs text-[#6f6a7d] dark:text-[#aaa3b7]">{readiness.findings.map(finding => <li key={finding}>{finding}</li>)}</ul>}</div>}
           </div>
         </fieldset>
 
@@ -289,7 +274,7 @@ export default function RunSetup({
           className={`${primaryButtonClass} ${
             busy || runInProgress ? 'justify-center gap-[10px]' : 'justify-between'
           } ${focusRingClass}`}
-          disabled={busy || runInProgress}
+          disabled={busy || runInProgress || !readiness || readiness.status === 'not-evaluable'}
           type="submit"
         >
           {busy ? (

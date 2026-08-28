@@ -263,7 +263,7 @@ export interface ImplementationReviewSection {
 export interface RunActivityNode {
   id: string;
   parentId: string | null;
-  kind: 'phase' | 'agent_message' | 'command_execution' | 'file_change';
+  kind: 'phase' | 'guidance' | 'skill' | 'agent_message' | 'command_execution' | 'file_change';
   label: string;
   detail: string;
   status: 'running' | 'completed' | 'failed';

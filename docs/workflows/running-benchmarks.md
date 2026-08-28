@@ -22,6 +22,8 @@ npx tsx backend/src/run-agent-benchmark.ts \
 
 The current `tasks-page` scenario is pinned to historical and guidance revisions from `my-webapp`. Its Compose overlay also assumes that repository's service names. It is not yet a generic arbitrary-repository scenario.
 
+The `sharpness-core` suite groups three compact `my-webapp` scenarios covering frontend navigation semantics, backend policy ownership, and row-local mutation safety. Recurring runs require explicit token-cost consent in Benchmark Lab, execute serially while the local service is awake, and never backfill missed intervals. Reconnect the repository after restarting the service.
+
 ## Experimental discipline
 
 - Keep scenario, prompt, guidance, baseline, evaluator, timeout, and provider version compatible across comparisons.

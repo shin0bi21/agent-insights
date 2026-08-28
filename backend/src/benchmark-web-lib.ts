@@ -17,6 +17,9 @@ import { writeJson } from './agent-benchmark-lib.js';
 import { createDatabase } from './db/client.js';
 import { databasePath } from './db/config.js';
 import { migrate } from './db/migrator.js';
+import { loadBenchmarkCatalog } from './services/benchmark-catalog.js';
+import { createBenchmarkSchedulePersistence } from './services/benchmark-schedule-persistence.js';
+import { assessBenchmarkReadiness } from './services/benchmark-readiness.js';
 import { createRunPersistence } from './services/run-persistence.js';
 
 export const ALLOWED_EFFORTS = ['low', 'medium', 'high'];
@@ -144,8 +147,22 @@ function activityLabel(item) {
   return item.status === 'in_progress' ? 'Running a command' : 'Command completed';
 }
 
+function observedSkillNames(command) {
+  const names = new Set();
+  const pluginRanges = [];
+  for (const match of command.matchAll(/plugins[\\/]cache[\\/]([^\\/"'\s]+)[\\/][^\\/"'\s]+[\\/]skills[\\/](?:[^\\/"'\s]+[\\/])*([^\\/"'\s]+)[\\/]SKILL\.md/g)) {
+    names.add(`${match[1]}:${match[2]}`);
+    pluginRanges.push([match.index, match.index + match[0].length]);
+  }
+  for (const match of command.matchAll(/(?:\.agents[\\/]|\.codex[\\/])?skills[\\/](?:[^\\/"'\s]+[\\/])*([^\\/"'\s]+)[\\/]SKILL\.md/g)) {
+    if (!pluginRanges.some(([start, end]) => match.index >= start && match.index < end)) names.add(match[1]);
+  }
+  return [...names];
+}
+
 export function parseAgentActivity(source, runStatus = 'completed') {
   const items = new Map();
+  const routes = new Map();
   for (const line of String(source ?? '').split('\n')) {
     if (!line.trim()) continue;
     let event;
@@ -166,12 +183,24 @@ export function parseAgentActivity(source, runStatus = 'completed') {
         .join('\n');
     }
     items.set(item.id, { id: item.id, parentId: 'agent-work', kind: item.type, label: activityLabel(item), detail, status });
+    if (item.type === 'command_execution') {
+      const command = String(item.command ?? '');
+      if (/AGENTS\.md\b/.test(command)) routes.set('guidance-agents', { id: 'guidance-agents', parentId: 'guidance-routing', kind: 'guidance', label: 'Read repository guidance', detail: 'AGENTS.md', status });
+      for (const name of observedSkillNames(command)) {
+        routes.set(`guidance-skill-${name}`, { id: `guidance-skill-${name}`, parentId: 'guidance-routing', kind: 'skill', label: `Read skill: ${name}`, detail: 'Explicit SKILL.md read; extracted contents are not retained.', status });
+      }
+    }
   }
   const children = [...items.values()].slice(-50);
   if (!children.length) return [];
   const failed = children.some(item => item.status === 'failed');
   const status = runStatus === 'running' || children.some(item => item.status === 'running') ? 'running' : failed ? 'failed' : 'completed';
-  return [{ id: 'agent-work', parentId: null, kind: 'phase', label: 'Agent work', detail: '', status }, ...children];
+  const routing = [...routes.values()];
+  return [
+    ...(routing.length ? [{ id: 'guidance-routing', parentId: null, kind: 'phase', label: 'Guidance routing', detail: 'Observed guidance-file reads only.', status }, ...routing] : []),
+    { id: 'agent-work', parentId: null, kind: 'phase', label: 'Agent work', detail: '', status },
+    ...children,
+  ];
 }
 
 export function benchmarkRunnerInvocation(root, environment = process.env) {
@@ -191,12 +220,16 @@ function readFileTail(path, maximumBytes = 1_000_000) {
   return buffer.toString('utf8');
 }
 
-export function createRunManager({ root, spawnProcess = spawn }) {
+export function createRunManager({ root, spawnProcess = spawn, schedulePollMs = 30_000 }) {
   const databaseFile = databasePath(root);
   migrate({ path: databaseFile });
   const database = createDatabase(databaseFile);
   const persistence = createRunPersistence(database);
+  const schedulePersistence = createBenchmarkSchedulePersistence(database);
   const active = new Map();
+  const catalog = loadBenchmarkCatalog(root);
+  const scheduleRepositories = new Map();
+  let starting = false;
   const ready = database
     .updateTable('runs')
     .set({ status: 'interrupted', completed_at: new Date().toISOString() })
@@ -243,17 +276,33 @@ export function createRunManager({ root, spawnProcess = spawn }) {
   }
 
   async function start(input) {
+    if (starting || [...active.values()].some(run => run.status === 'running')) {
+      const error: Error & { status?: number } = new Error('Another benchmark run is already active.');
+      error.status = 409;
+      throw error;
+    }
+    starting = true;
+    try {
     await ready;
     const { repo } = validateAutomationGuidance(input.repo);
     const provider = AGENT_PROVIDERS[input.provider];
     if (!provider) throw new Error('Unsupported agent provider.');
     if (!provider.models.some(model => model.id === input.model)) throw new Error('Unsupported model for this provider.');
     if (!ALLOWED_EFFORTS.includes(input.reasoningEffort)) throw new Error('Unsupported reasoning effort.');
-    if (!ALLOWED_FEATURE_TYPES.includes(input.featureType)) throw new Error('Unsupported feature type.');
+    if (typeof input.scenarioId !== 'string') throw new Error('Select a benchmark scenario before starting a run.');
+    const scenario = catalog.scenario(input.scenarioId);
+    const readiness = assessBenchmarkReadiness(repo, scenario);
+    if (readiness.status === 'not-evaluable') {
+      const error: Error & { status?: number } = new Error(`Benchmark not runnable: insufficient evaluation contract. ${readiness.findings.join(' ')}`);
+      error.status = 422;
+      throw error;
+    }
+    const featureType = input.featureType ?? scenario.featureType;
+    if (!ALLOWED_FEATURE_TYPES.includes(featureType)) throw new Error('Unsupported feature type.');
     const id = `run-${new Date().toISOString().replaceAll(/[^0-9]/g, '').slice(0, 17)}-${Math.random().toString(36).slice(2, 7)}`;
     const directory = mkdtempSync(resolve(validateRunTemporaryRoot(repo), `agent-insights-${id}-`));
-    const scenarioPrompt = readFileSync(resolve(root, 'benchmarks/tasks-page/prompt.md'), 'utf8');
-    const prompt = composePrompt({ scenarioPrompt, featureType: input.featureType, description: input.description });
+    const scenarioPrompt = readFileSync(scenario.promptFile, 'utf8');
+    const prompt = composePrompt({ scenarioPrompt, featureType, description: scenario.title });
     const promptPath = resolve(directory, 'prompt.md');
     const logPath = resolve(directory, 'runner.log');
     writeFileSync(promptPath, prompt);
@@ -266,8 +315,12 @@ export function createRunManager({ root, spawnProcess = spawn }) {
       provider: provider.id,
       model: input.model,
       reasoningEffort: input.reasoningEffort,
-      featureType: input.featureType,
-      description: String(input.description).trim(),
+      featureType,
+      scenarioId: scenario.id,
+      description: scenario.title,
+      readinessFingerprint: readiness.fingerprint,
+      promptTemplateVersion: `${scenario.id}:v${scenario.version}`,
+      readiness,
     };
     writeJson(resolve(directory, 'web-run.json'), config);
     const baseRevision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
@@ -275,14 +328,15 @@ export function createRunManager({ root, spawnProcess = spawn }) {
       id,
       repositoryName: basename(repo),
       baseRevision,
-      featureType: input.featureType,
+      featureType,
       description: config.description,
       preparedPrompt: prompt,
-      promptTemplateVersion: 'tasks-page:v1',
-      evaluationTemplate: 'tasks-page',
+      promptTemplateVersion: `${scenario.id}:v${scenario.version}`,
+      evaluationTemplate: scenario.id,
       provider: provider.id,
       agent: input.model,
       reasoningLevel: input.reasoningEffort,
+      readiness,
       createdAt: config.createdAt,
     });
     await persistence.updateRunStatus(id, 'running');
@@ -290,8 +344,8 @@ export function createRunManager({ root, spawnProcess = spawn }) {
     const args = [
       ...invocation.args,
       '--repo', repo,
-      '--scenario', 'tasks-page',
-      '--feature-type', input.featureType,
+      '--scenario', scenario.id,
+      '--feature-type', featureType,
       '--models', input.model,
       '--reasoning-efforts', input.reasoningEffort,
       '--repetitions', '1',
@@ -310,6 +364,9 @@ export function createRunManager({ root, spawnProcess = spawn }) {
       writeJson(resolve(directory, 'web-run.json'), { ...config, status, exitCode });
       try {
         await persistence.normalizeTemporaryRun(directory, { replaceExisting: true });
+        if (input.scheduleOccurrence) {
+          await schedulePersistence.linkOccurrenceRun(input.scheduleOccurrence.scheduleId, input.scheduleOccurrence.plannedAt, id);
+        }
         active.delete(id);
         rmSync(directory, { recursive: true, force: true });
       } catch (error) {
@@ -318,7 +375,183 @@ export function createRunManager({ root, spawnProcess = spawn }) {
       }
     });
     return await get(id);
+    } finally {
+      starting = false;
+    }
   }
 
-  return { get, list, start, close: () => database.destroy() };
+  function scheduleView(schedule) {
+    return {
+      id: schedule.id,
+      repositoryName: schedule.repository_name,
+      scenarioId: schedule.scenario_id,
+      scenarioVersion: schedule.scenario_version,
+      scenarioFingerprint: schedule.scenario_fingerprint,
+      provider: schedule.provider,
+      model: schedule.model,
+      reasoningEffort: schedule.reasoning,
+      featureType: schedule.feature_type,
+      description: schedule.description,
+      intervalMinutes: schedule.interval_minutes,
+      enabled: Boolean(schedule.enabled),
+      consentedAt: schedule.token_cost_consent_at,
+      nextRunAt: schedule.next_run_at,
+      connected: scheduleRepositories.has(schedule.id),
+      createdAt: schedule.created_at,
+      updatedAt: schedule.updated_at,
+      trend: [],
+    };
+  }
+
+  async function listSchedules() {
+    await ready;
+    return Promise.all((await schedulePersistence.listSchedules()).map(async schedule => ({
+      ...scheduleView(schedule),
+      trend: (await schedulePersistence.listTrendPoints(schedule.id, 24)).map(point => ({
+        plannedAt: point.planned_at,
+        outcome: point.outcome,
+        runId: point.run_id,
+        reason: point.reason,
+        runStatus: point.run_status,
+        score: point.average_score,
+        durationMs: point.duration_ms,
+        inputTokens: point.input_tokens,
+        cachedInputTokens: point.cached_input_tokens,
+        newInputTokens: point.input_tokens === null || point.cached_input_tokens === null ? null : Math.max(0, point.input_tokens - point.cached_input_tokens),
+        outputTokens: point.output_tokens,
+      })).reverse(),
+    })));
+  }
+
+  async function createSuiteSchedule(input) {
+    await ready;
+    if (input.tokenCostConsent !== true) throw new Error('Recurring benchmarks require explicit token-cost consent.');
+    const intervalMinutes = Number(input.intervalMinutes);
+    if (!Number.isInteger(intervalMinutes) || intervalMinutes < 1440) throw new Error('Recurring benchmark interval must be at least one day.');
+    const { repo } = validateAutomationGuidance(input.repo);
+    const suite = catalog.suite(String(input.suiteId));
+    const provider = AGENT_PROVIDERS[input.provider];
+    if (!provider?.models.some(model => model.id === input.model)) throw new Error('Unsupported model for this provider.');
+    if (!ALLOWED_EFFORTS.includes(input.reasoningEffort)) throw new Error('Unsupported reasoning effort.');
+    const now = new Date();
+    const nextRunAt = new Date(now.getTime() + intervalMinutes * 60_000).toISOString();
+    const suiteScenarios = suite.scenarioIds.map(scenarioId => catalog.scenario(scenarioId));
+    const blocked = suiteScenarios.map(scenario => assessBenchmarkReadiness(repo, scenario)).find(readiness => readiness.status === 'not-evaluable');
+    if (blocked) throw new Error(`Benchmark suite is not runnable: ${blocked.scenarioId} has insufficient evaluation evidence. ${blocked.findings.join(' ')}`);
+    const scheduleInputs = suiteScenarios.map(scenario => ({
+        id: `schedule-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        repositoryName: basename(repo),
+        scenarioId: scenario.id,
+        scenarioVersion: scenario.version,
+        scenarioFingerprint: scenario.fingerprint,
+        provider: provider.id,
+        model: input.model,
+        reasoning: input.reasoningEffort,
+        featureType: scenario.featureType,
+        description: scenario.title,
+        intervalMinutes,
+        enabled: true,
+        tokenCostConsentAt: now.toISOString(),
+        nextRunAt,
+        createdAt: now.toISOString(),
+      }));
+    const createdSchedules = await schedulePersistence.createSchedules(scheduleInputs);
+    for (const schedule of createdSchedules) scheduleRepositories.set(schedule.id, repo);
+    const schedules = createdSchedules.map(scheduleView);
+    return { suiteId: suite.id, schedules };
+  }
+
+  async function updateSchedule(id, input) {
+    await ready;
+    const schedule = await schedulePersistence.getSchedule(id);
+    if (!schedule) return null;
+    const currentScenario = catalog.scenario(schedule.scenario_id);
+    if (input.enabled === true && (currentScenario.version !== schedule.scenario_version || currentScenario.fingerprint !== schedule.scenario_fingerprint)) {
+      throw new Error('This schedule uses an outdated scenario version. Create a new compatible schedule.');
+    }
+    const now = new Date().toISOString();
+    if (input.enabled === true && input.tokenCostConsent !== true) throw new Error('Enabling a recurring benchmark requires renewed token-cost consent.');
+    if (input.repo) {
+      const { repo } = validateAutomationGuidance(input.repo);
+      if (basename(repo) !== schedule.repository_name) throw new Error('Reconnect the original repository for this schedule.');
+      scheduleRepositories.set(id, repo);
+    }
+    if (input.enabled === true && !scheduleRepositories.has(id)) {
+      throw new Error('Reconnect the original repository before enabling this schedule.');
+    }
+    if (input.enabled === false) scheduleRepositories.delete(id);
+    await schedulePersistence.updateSchedule(id, {
+      enabled: input.enabled,
+      tokenCostConsentAt: input.enabled === true ? now : input.enabled === false ? null : undefined,
+      updatedAt: now,
+    });
+    return scheduleView(await schedulePersistence.getSchedule(id));
+  }
+
+  function nextFutureRun(plannedAt, intervalMinutes, now) {
+    let next = Date.parse(plannedAt);
+    const step = intervalMinutes * 60_000;
+    do { next += step; } while (next <= now);
+    return new Date(next).toISOString();
+  }
+
+  async function runDueSchedule() {
+    await ready;
+    if (starting || [...active.values()].some(run => run.status === 'running')) return;
+    const now = Date.now();
+    const schedule = (await schedulePersistence.listDueSchedules(new Date(now).toISOString(), 1))[0];
+    if (!schedule) return;
+    const nextRunAt = nextFutureRun(schedule.next_run_at, schedule.interval_minutes, now);
+    if (!await schedulePersistence.advanceSchedule(schedule.id, schedule.next_run_at, nextRunAt, new Date(now).toISOString())) return;
+    const repo = scheduleRepositories.get(schedule.id);
+    const occurrence = {
+      id: `occurrence-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      scheduleId: schedule.id,
+      plannedAt: schedule.next_run_at,
+      createdAt: new Date(now).toISOString(),
+    };
+    const currentScenario = catalog.scenario(schedule.scenario_id);
+    if (currentScenario.version !== schedule.scenario_version || currentScenario.fingerprint !== schedule.scenario_fingerprint) {
+      await schedulePersistence.updateSchedule(schedule.id, { enabled: false, tokenCostConsentAt: null, updatedAt: new Date(now).toISOString() });
+      await schedulePersistence.recordOccurrence({ ...occurrence, outcome: 'skipped', reason: 'Scenario version changed; create a new compatible schedule.' });
+      return;
+    }
+    if (!repo) {
+      await schedulePersistence.recordOccurrence({ ...occurrence, outcome: 'skipped', reason: 'Repository reconnect required after service restart.' });
+      return;
+    }
+    try {
+      const run = await start({
+        repo,
+        scenarioId: schedule.scenario_id,
+        provider: schedule.provider,
+        model: schedule.model,
+        reasoningEffort: schedule.reasoning,
+        featureType: schedule.feature_type,
+        description: schedule.description,
+        scheduleOccurrence: { scheduleId: schedule.id, plannedAt: schedule.next_run_at },
+      });
+      await schedulePersistence.recordOccurrence({ ...occurrence, outcome: 'started', runId: run.id });
+    } catch (error) {
+      console.error(`Scheduled benchmark ${schedule.id} could not start.`, error);
+      await schedulePersistence.recordOccurrence({ ...occurrence, outcome: 'failed', reason: 'Scheduled benchmark could not start; review the local service log.' });
+    }
+  }
+
+  const scheduleTimer = setInterval(() => {
+    void runDueSchedule().catch(error => console.error('Recurring benchmark scheduler failed safely.', error));
+  }, schedulePollMs);
+  scheduleTimer.unref?.();
+
+  return {
+    get, list, start,
+    catalog: () => ({ scenarios: catalog.scenarios.map(({ id, version, title, featureType }) => ({ id, version, title, featureType })), suites: catalog.suites }),
+    readiness: input => {
+      const { repo } = validateAutomationGuidance(input.repo);
+      return assessBenchmarkReadiness(repo, catalog.scenario(String(input.scenarioId)));
+    },
+    listSchedules, createSuiteSchedule, updateSchedule, runDueSchedule,
+    hasActiveRun: () => starting || [...active.values()].some(run => run.status === 'running'),
+    close: () => { clearInterval(scheduleTimer); return database.destroy(); },
+  };
 }
