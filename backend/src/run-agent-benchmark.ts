@@ -94,6 +94,12 @@ export function codexArguments({ model, reasoningEffort, worktree, finalPath }) 
   ];
 }
 
+export function resolveFeatureType(override, manifestFeatureType) {
+  const featureType = override ?? manifestFeatureType ?? 'full-stack';
+  if (!FEATURE_TYPES.includes(featureType)) throw new Error(`Unsupported scenario feature type: ${String(featureType)}.`);
+  return featureType;
+}
+
 export function dockerComposeIsolationOverride(services: unknown): string {
   if (!Array.isArray(services) || services.length === 0) {
     throw new Error('Scenario isolation requires at least one Docker Compose service.');
@@ -131,7 +137,7 @@ export function applyGuidanceSnapshot({ repoRoot, worktree, guidance }) {
   }
   // Guidance may introduce canonical documentation paths that the historical
   // product baseline ignored before those paths existed.
-  git(['add', '--force', '--', ...guidance.paths], worktree);
+  git(['add', '--force', '--', ...files], worktree);
   let hasStagedChanges = false;
   try {
     execFileSync('git', ['diff', '--cached', '--quiet'], { cwd: worktree, stdio: 'ignore' });
@@ -337,7 +343,7 @@ async function main() {
   const matrix = models.flatMap(model => reasoningEfforts.flatMap(reasoningEffort => (
     Array.from({ length: repetitions }, (_, index) => ({ model, reasoningEffort, repetition: index + 1 }))
   )));
-  options.featureType ??= 'full-stack';
+  options.featureType = resolveFeatureType(options.featureType, manifest.featureType);
   const runPlan = {
     scenario: manifest.id,
     featureType: options.featureType,
