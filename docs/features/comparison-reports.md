@@ -6,6 +6,10 @@ Scenario reports include an implementation review grouped by applicable backend 
 
 Recommendations identify where repository instructions, feature contracts, examples, tests, evaluators, skills, or delegated work could improve future automation. Each recommendation cites evidence and confidence. Reports must separate repository-readiness gaps, agent implementation failures, evaluator limitations, and external environment failures.
 
+Runs without a defensible evaluation contract retain duration and usage evidence but expose no performance score. Legacy runs that combined an arbitrary request with an unrelated pinned scenario are marked incompatible instead of presenting their structural misses as agent failures.
+
+Longitudinal benchmark trends compare only compatible executions of the same pinned scenario version and agent configuration. Score, gate outcome, duration, cached input, new input, and output remain visible per scenario. One observation is capability evidence rather than a reliability claim. A diagnostic regression signal appears after two consecutive failures, a score at least 10 points below the recent compatible median, or duration or processed tokens at least 30% above that median. These thresholds are feedback, not a new score or proof of causation.
+
 HTML is the primary interactive view. PDF export presents the same normalized report and does not introduce conclusions absent from the source data.
 
 ## Implementation ownership
