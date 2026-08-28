@@ -6,6 +6,8 @@ The universal score covers discoverable instructions, reproducible setup, safe i
 
 Optional templates add domain expectations such as React/Vite UI composition, full-stack CRUD layering, API compatibility, CLI behavior, libraries, or mobile applications. Template scores remain separate and state their applicability. Reference comparisons evaluate contracts, behavior, and repository-mandated ownership; they do not require byte-identical directories.
 
+Before provider execution, Benchmark Lab deterministically builds a versioned, zero-token evaluation contract from pinned Git trees. It resolves task-relevant pattern documents, manifest-owned reference patterns, repeated task-named source paths across distinct ownership directories, and executable verification entry points. The result is `ready`, `ready-with-limitations`, or `not-evaluable`. A not-evaluable result blocks execution before an agent starts and produces no performance score. Missing pattern documentation is repository-readiness evidence, not an agent failure; generic agent guidance and a large repository cannot substitute for applicable documents or repeated examples. This discovery phase never calls an LLM or mutates the attached worktree.
+
 ## Implementation ownership
 
 - Benchmark and evaluator configuration: `benchmarks/`

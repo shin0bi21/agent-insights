@@ -18,6 +18,10 @@ vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       ? { directoryPickerAvailable: false, repositoryPath: '/mounted/example' }
     : path.endsWith('/api/repository')
       ? { repo: '/tmp/example', skills: Array.from({ length: 5 }, (_, index) => ({ name: `skill-${index}`, description: '', path: '' })) }
+      : path.endsWith('/api/benchmark-catalog')
+        ? { scenarios: [{ id: 'example', version: 1, title: 'Example scenario', featureType: 'frontend' }], suites: [] }
+      : path.endsWith('/api/benchmark-readiness')
+        ? { status: 'ready', contractVersion: 1, fingerprint: 'abc', scenarioId: 'example', baseRevision: 'abc', evidence: { guidance: ['AGENTS.md'], patternDocuments: ['docs/features/example.md'], analogues: ['frontend/src/Example.tsx'], inferredAnalogues: [], verification: ['npm test'] }, findings: [] }
       : [];
   return { ok: true, json: async () => value } as Response;
 }));
@@ -30,7 +34,7 @@ test('renders the typed run configuration and provider catalog', async () => {
   await waitFor(() => expect(screen.getByLabelText('Local repository path')).toHaveValue('/mounted/example'));
   await waitFor(() => expect(screen.getByRole('button', { name: 'Platform' })).toHaveTextContent('Codex'));
   expect(screen.getByRole('button', { name: 'Model' })).toHaveTextContent('Luna');
-  expect(screen.getByRole('button', { name: 'What kind of feature is this?' })).toHaveTextContent('Full stack');
+  expect(screen.getByRole('button', { name: 'Benchmark scenario' })).toHaveTextContent('Example scenario');
   expect(screen.queryByText('Repository skill')).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Browse…' })).not.toBeInTheDocument();
   expect(screen.getByText(/Folder browsing is unavailable/)).toBeInTheDocument();

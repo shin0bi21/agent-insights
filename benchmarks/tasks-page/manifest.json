@@ -15,7 +15,9 @@
       "docs/development",
       "docs/features",
       "docs/workflows",
-      "frontend/README.md"
+      "frontend/README.md",
+      "scripts/tests/backend/run-task-tests.sh",
+      "scripts/tests/frontend/run-task-tests.sh"
     ]
   },
   "promptFile": "prompt.md",

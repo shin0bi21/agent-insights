@@ -19,6 +19,10 @@ export interface RunsTable {
   prepared_prompt: string;
   prompt_template_version: string;
   evaluation_template: string;
+  evaluation_readiness_status: 'ready' | 'ready-with-limitations' | 'not-evaluable' | null;
+  evaluation_readiness_fingerprint: string | null;
+  evaluation_readiness_evidence_json: string | null;
+  evaluation_readiness_findings_json: string | null;
   requested_repetitions: number;
   requested_review_passes: number;
   status: string;

@@ -10,6 +10,11 @@ type RunManager = {
   get(id: string): unknown | null | Promise<unknown | null>;
   list(): unknown | Promise<unknown>;
   start(input: Record<string, unknown>): unknown | Promise<unknown>;
+  readiness?(input: Record<string, unknown>): unknown | Promise<unknown>;
+  catalog?(): unknown | Promise<unknown>;
+  listSchedules?(): unknown | Promise<unknown>;
+  createSuiteSchedule?(input: Record<string, unknown>): unknown | Promise<unknown>;
+  updateSchedule?(id: string, input: Record<string, unknown>): unknown | null | Promise<unknown | null>;
 };
 
 type SessionManager = ReturnType<typeof createSessionManager>;
@@ -67,6 +72,31 @@ export function createBenchmarkApp(options: CreateBenchmarkAppOptions): Express 
 
   app.get('/api/providers', (_request, response) => {
     response.set('cache-control', 'no-store').json(getProviders());
+  });
+
+  app.get('/api/benchmark-catalog', async (_request, response) => {
+    response.set('cache-control', 'no-store').json(await manager.catalog?.() ?? { scenarios: [], suites: [] });
+  });
+
+  app.post('/api/benchmark-readiness', async (request, response) => {
+    if (!manager.readiness) return response.status(501).set('cache-control', 'no-store').json({ error: 'Benchmark readiness is unavailable.' });
+    response.set('cache-control', 'no-store').json(await manager.readiness(request.body ?? {}));
+  });
+
+  app.get('/api/benchmark-schedules', async (_request, response) => {
+    response.set('cache-control', 'no-store').json(await manager.listSchedules?.() ?? []);
+  });
+
+  app.post('/api/benchmark-schedules', async (request, response) => {
+    if (!manager.createSuiteSchedule) return response.status(501).set('cache-control', 'no-store').json({ error: 'Recurring benchmarks are unavailable.' });
+    return response.status(201).set('cache-control', 'no-store').json(await manager.createSuiteSchedule(request.body ?? {}));
+  });
+
+  app.patch('/api/benchmark-schedules/:id', async (request, response) => {
+    if (!manager.updateSchedule) return response.status(501).set('cache-control', 'no-store').json({ error: 'Recurring benchmarks are unavailable.' });
+    const schedule = await manager.updateSchedule(request.params.id, request.body ?? {});
+    if (!schedule) return response.status(404).set('cache-control', 'no-store').json({ error: 'Benchmark schedule not found.' });
+    return response.set('cache-control', 'no-store').json(schedule);
   });
 
   app.get('/api/runtime', (_request, response) => {
